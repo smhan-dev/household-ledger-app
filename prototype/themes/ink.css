@@ -1,0 +1,24 @@
+/* 잉크 & 스카이 — palette candidate. Cool, calm ink-navy main with a soft sky-blue key.
+   Cleaner and more restrained than monolav. Start values: bg #F4F6FA / main #202838 / key #AFD9FF.
+   Overrides tokens in ../styles.css. See ../PALETTES.md. */
+:root {
+  --navy-900:#161C28; --navy-700:#202838; --navy-500:#3C475C;
+  --lime-400:#AFD9FF; --lime-600:#7FB6E8; --lime-ink:#10243A;
+  --bg:#F4F6FA; --surface:#FFFFFF; --fill:#EBEFF6; --line:#DFE4EE;
+  --text-1:#151A24; --text-2:#434B5A; --text-3:#636B7C; --text-4:#A7AEBD;
+  --pos:#1F9D63; --pos-soft:#E2F5EC; --pos-ink:#157A4B;
+  --neg:#D9443A; --neg-soft:#FDE7E4; --neg-ink:#C1362B;
+  --warn-soft:#FFF3D1; --warn-ink:#6B5300;
+}
+body { background:#E2E7F0; }
+.hero, .stat.hero-stat, .dark { background: linear-gradient(165deg, #2E3A50 0%, #202838 55%, #171E2B 100%); }
+.hero { box-shadow: inset 0 1px 0 rgba(175,217,255,.3), 0 24px 40px -26px rgba(32,40,56,.85); }
+.hero::after, .stat.hero-stat::after { background:#AFD9FF; opacity:.1; }
+.dark::after { background:#AFD9FF; opacity:.14; filter: blur(32px); }
+.hero.over::after { background:#fff; opacity:.08; }
+.btn-lime { box-shadow: inset 0 -2px 0 var(--lime-600), 0 14px 26px -16px rgba(32,40,56,.5); }
+.priv-pts span { background: rgba(175,217,255,.18); }
+.cal-d.good, .legend .lg-good { background:#E4F0FD; color:#1C4D7A; box-shadow:none; }
+.preview { background:#F1F4F9; }
+.preview b { color:#202838; }
+.tabbar::before { background: linear-gradient(to top, var(--bg) 30%, rgba(244,246,250,0)); }
