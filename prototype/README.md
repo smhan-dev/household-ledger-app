@@ -17,6 +17,7 @@
 ## 문서
 - [`DESIGN.md`](DESIGN.md): 디자인 문법 (색, 글자, 간격, 모서리, 움직임, 문구, 컴포넌트)
 - [`SECURITY.md`](SECURITY.md): 데이터 흐름, 보안 시험 결과, 실제 앱에서 확인할 것
+- [`PALETTES.md`](PALETTES.md): 색 조합 시안 3종과 비교. 주소 끝에 `?theme=midnight`, `?theme=teal`, `?theme=plum`을 붙여 바로 볼 수 있음
 
 ## 파일
 - `index.html`: 진입점, 외부 요청 차단 정책(CSP)
@@ -24,6 +25,8 @@
 - `i18n.js`: 한/영 문구와 고정비·빚·수입 프리셋
 - `app.js`: 화면 렌더링, 계산, 이벤트 처리
 - `fonts/`: Pretendard 글꼴(SIL OFL 1.1)과 라이선스
+- `theme.js`, `themes/`: 색 시안 전환 (확정 후 삭제 예정)
+- `palettes/`: 색 시안 캡처와 비교 보드
 - `screenshots/`: 시험 중 캡처한 화면
 
 | 첫 화면 | 고정비 | 세팅 결과 | 오늘 |
