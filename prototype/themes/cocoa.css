@@ -1,0 +1,23 @@
+/* H. 코코아 & 로즈 — palette candidate. The only warm main color in the set.
+   Overrides tokens in ../styles.css. See ../PALETTES.md. */
+:root {
+  --navy-900:#36201A; --navy-700:#4E2F24; --navy-500:#7A4A38;
+  --lime-400:#F6A8BF; --lime-600:#DC879F; --lime-ink:#3D0F1E;
+  --bg:#F7F6F5; --surface:#FFFFFF; --fill:#F0EDEA; --line:#E6E1DD;
+  --text-1:#1F1714; --text-2:#4D433F; --text-3:#685D58; --text-4:#B2A9A4;
+  --pos:#2C8C5F; --pos-soft:#E3F2E9; --pos-ink:#1E6C48;
+  --neg:#C9423A; --neg-soft:#FBE5E1; --neg-ink:#B3352D;
+  --warn-soft:#FBF0DC; --warn-ink:#6A4E10;
+}
+body { background:#E9E5E2; }
+.hero, .stat.hero-stat, .dark { background: linear-gradient(165deg, #66402F 0%, #4E2F24 55%, #3B231B 100%); }
+.hero { box-shadow: 0 24px 40px -26px rgba(54,32,26,.85); }
+.hero::after, .stat.hero-stat::after { background:#F6A8BF; opacity:.12; }
+.dark::after { background:#F6A8BF; opacity:.14; filter: blur(30px); }
+.hero.over::after { background:#fff; opacity:.08; }
+.btn-lime { box-shadow: inset 0 -2px 0 var(--lime-600), 0 14px 26px -16px rgba(78,47,36,.5); }
+.priv-pts span { background: rgba(246,168,191,.16); }
+/* Rose is close to red, so "under budget" days use a cocoa tint instead of a pink one. */
+.cal-d.good, .legend .lg-good { background:#F1E8E3; color:#5A3A2E; box-shadow:none; }
+.preview { background:#F3EFEC; }
+.tabbar::before { background: linear-gradient(to top, var(--bg) 30%, rgba(247,246,245,0)); }

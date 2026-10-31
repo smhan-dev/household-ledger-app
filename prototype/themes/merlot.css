@@ -1,0 +1,22 @@
+/* K. 멀롯 & 아이스 — palette candidate. Warm wine main with a cool ice-blue key.
+   Overrides tokens in ../styles.css. See ../PALETTES.md. */
+:root {
+  --navy-900:#3A0F25; --navy-700:#561B3A; --navy-500:#8A3562;
+  --lime-400:#BFE0FF; --lime-600:#8FC0EE; --lime-ink:#0B2A4A;
+  --bg:#F7F6F8; --surface:#FFFFFF; --fill:#F0EDF0; --line:#E6E1E6;
+  --text-1:#1E1419; --text-2:#4C4047; --text-3:#675B62; --text-4:#B1A7AD;
+  --pos:#1F9D63; --pos-soft:#E2F5EC; --pos-ink:#157A4B;
+  --neg:#D9443A; --neg-soft:#FDE7E4; --neg-ink:#C1362B;
+  --warn-soft:#FFF6D6; --warn-ink:#6B5300;
+}
+body { background:#E8E4E8; }
+.hero, .stat.hero-stat, .dark { background: linear-gradient(165deg, #742A4F 0%, #561B3A 55%, #43142D 100%); }
+.hero { box-shadow: 0 24px 40px -26px rgba(58,15,37,.85); }
+.hero::after, .stat.hero-stat::after { background:#BFE0FF; opacity:.1; }
+.dark::after { background:#BFE0FF; opacity:.14; filter: blur(30px); }
+.hero.over::after { background:#fff; opacity:.08; }
+.btn-lime { box-shadow: inset 0 -2px 0 var(--lime-600), 0 14px 26px -16px rgba(86,27,58,.5); }
+.priv-pts span { background: rgba(191,224,255,.16); }
+.cal-d.good, .legend .lg-good { background:#E6F1FF; color:#1E4E86; box-shadow:none; }
+.preview { background:#F3EFF3; }
+.tabbar::before { background: linear-gradient(to top, var(--bg) 30%, rgba(247,246,248,0)); }

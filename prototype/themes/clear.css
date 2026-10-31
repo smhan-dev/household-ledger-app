@@ -1,0 +1,27 @@
+/* D. 클리어 블루 & 아쿠아 — palette candidate. Overrides tokens in ../styles.css. See ../PALETTES.md. */
+:root {
+  --navy-900:#0747AE; --navy-700:#0956CC; --navy-500:#1A5BCC;
+  --lime-400:#86EEE0; --lime-600:#4FD3C1; --lime-ink:#053A33;
+  --bg:#F6F8FB; --surface:#FFFFFF; --fill:#EDF2F8; --line:#E1E8F0;
+  --text-1:#0F1B2D; --text-2:#3D4A5D; --text-3:#596678; --text-4:#A6B0BE;
+  --pos:#1E9A58; --pos-soft:#E0F4E8; --pos-ink:#167446;
+  --neg:#D2453A; --neg-soft:#FDE7E4; --neg-ink:#C1362B;
+  --warn-soft:#FFF5D9; --warn-ink:#6B5300;
+  /* Bright blue needs more opaque secondary text to stay above 4.5:1 */
+  --on-dark-2: rgba(255,255,255,.94);
+  --on-dark-3: rgba(255,255,255,.9);
+  --on-dark-fill: rgba(255,255,255,.12);
+  --on-dark-line: rgba(255,255,255,.2);
+}
+body { background:#E4EAF1; }
+.hero, .stat.hero-stat, .dark { background: linear-gradient(165deg, #1463E0 0%, #0956CC 55%, #074CB8 100%); }
+.hero { box-shadow: 0 24px 40px -26px rgba(9,86,204,.7); }
+.hero::after, .stat.hero-stat::after { background:#fff; opacity:.08; }
+.dark::after { background:#86EEE0; opacity:.16; filter: blur(30px); }
+.hero.over::after { background:#fff; opacity:.08; }
+.hero-badge { background: rgba(4,30,80,.22); color:#fff; }
+.btn-lime { box-shadow: inset 0 -2px 0 var(--lime-600), 0 14px 26px -16px rgba(9,86,204,.45); }
+.priv-pts span { background: rgba(134,238,224,.16); }
+.cal-d.good, .legend .lg-good { background:#DDF7F2; color:#0D6457; box-shadow:none; }
+.preview { background:#EEF4FD; }
+.tabbar::before { background: linear-gradient(to top, var(--bg) 30%, rgba(246,248,251,0)); }

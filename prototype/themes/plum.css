@@ -1,0 +1,19 @@
+/* C. 플럼 & 버터 — palette candidate. Overrides tokens in ../styles.css. See ../PALETTES.md. */
+:root {
+  --navy-900:#1C0F2B; --navy-700:#2D1A45; --navy-500:#56377C;
+  --lime-400:#FFD45E; --lime-600:#DDB03A; --lime-ink:#2E2100;
+  --bg:#F6F2EF; --surface:#FFFFFF; --fill:#EFE8EA; --line:#E6DEE2;
+  --text-1:#1E1626; --text-2:#4D4456; --text-3:#685F72; --text-4:#B0A8B5;
+  --pos:#2E9068; --pos-soft:#E2F1EA; --pos-ink:#1E6F4F;
+  --neg:#CF3D57; --neg-soft:#FBE4E8; --neg-ink:#B42F48;
+  --warn-soft:#FFF1CF; --warn-ink:#6B4F00;
+}
+body { background:#EAE3E2; }
+.hero, .stat.hero-stat, .dark { background: linear-gradient(165deg, #452A68 0%, #2D1A45 60%, #23143A 100%); }
+.hero { box-shadow: 0 24px 40px -28px rgba(28,15,43,.9); }
+.hero::after, .stat.hero-stat::after, .dark::after { background:#FFD45E; opacity:.13; }
+.hero.over::after { background:#fff; opacity:.1; }
+.btn-lime { box-shadow: inset 0 -2px 0 var(--lime-600), 0 14px 26px -16px rgba(45,26,69,.55); }
+.cal-d.good, .legend .lg-good { background:#FFF1C4; color:#7A5A00; box-shadow:none; }
+.preview { background:#F4EEF2; }
+.tabbar::before { background: linear-gradient(to top, var(--bg) 30%, rgba(246,242,239,0)); }
