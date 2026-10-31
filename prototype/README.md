@@ -17,7 +17,7 @@
 ## 문서
 - [`DESIGN.md`](DESIGN.md): 디자인 문법 (색, 글자, 간격, 모서리, 움직임, 문구, 컴포넌트)
 - [`SECURITY.md`](SECURITY.md): 데이터 흐름, 보안 시험 결과, 실제 앱에서 확인할 것
-- [`PALETTES.md`](PALETTES.md): 색 조합 추천 5개(`?theme=clear`, `pine`, `plumlime`, `cocoa`, `monolav`)와 걸러낸 이유, 이전 시안 비교
+- [`PALETTES.md`](PALETTES.md): 색 조합 최종 후보 5개(`?theme=navylime`, `cocoa`, `monolav`, `merlot`, `olive`)와 이전 시안 비교
 
 ## 파일
 - `index.html`: 진입점, 외부 요청 차단 정책(CSP)

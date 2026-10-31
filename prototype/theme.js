@@ -3,7 +3,8 @@
 (function () {
   var THEMES = {
     midnight: '#121A3A', teal: '#0F4A52', plum: '#2D1A45', clear: '#0956CC', pine: '#17402F', mono: '#111111',
-    plumlime: '#2D1A45', cocoa: '#4E2F24', monolav: '#111111'
+    plumlime: '#2D1A45', cocoa: '#4E2F24', monolav: '#111111',
+    navylime: '#1A2B85', merlot: '#561B3A', olive: '#38431F'
   };
   var name = new URLSearchParams(location.search).get('theme');
   if (!Object.prototype.hasOwnProperty.call(THEMES, name)) return;

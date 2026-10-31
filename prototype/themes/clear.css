@@ -18,7 +18,6 @@ body { background:#E4EAF1; }
 .hero { box-shadow: 0 24px 40px -26px rgba(9,86,204,.7); }
 .hero::after, .stat.hero-stat::after { background:#fff; opacity:.08; }
 .dark::after { background:#86EEE0; opacity:.16; filter: blur(30px); }
-.hero.over { background: linear-gradient(165deg, #C93E31 0%, #B53124 100%); box-shadow: 0 24px 40px -26px rgba(181,49,36,.75); }
 .hero.over::after { background:#fff; opacity:.08; }
 .hero-badge { background: rgba(4,30,80,.22); color:#fff; }
 .btn-lime { box-shadow: inset 0 -2px 0 var(--lime-600), 0 14px 26px -16px rgba(9,86,204,.45); }

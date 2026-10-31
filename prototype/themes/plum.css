@@ -12,7 +12,6 @@ body { background:#EAE3E2; }
 .hero, .stat.hero-stat, .dark { background: linear-gradient(165deg, #452A68 0%, #2D1A45 60%, #23143A 100%); }
 .hero { box-shadow: 0 24px 40px -28px rgba(28,15,43,.9); }
 .hero::after, .stat.hero-stat::after, .dark::after { background:#FFD45E; opacity:.13; }
-.hero.over { background: linear-gradient(165deg, #E0566E 0%, #BB2F4A 100%); }
 .hero.over::after { background:#fff; opacity:.1; }
 .btn-lime { box-shadow: inset 0 -2px 0 var(--lime-600), 0 14px 26px -16px rgba(45,26,69,.55); }
 .cal-d.good, .legend .lg-good { background:#FFF1C4; color:#7A5A00; box-shadow:none; }

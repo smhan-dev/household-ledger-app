@@ -238,7 +238,8 @@ html[lang="ko"] .eyebrow, html[lang="ko"] .pill-private { letter-spacing: 0; }
 .hero { position: relative; overflow: hidden; padding: var(--s6); border-radius: var(--r-xl); color: #fff; background: radial-gradient(90% 90% at 100% 0%, var(--navy-500) 0%, rgba(51, 70, 184, 0) 60%), var(--navy-700); box-shadow: 0 20px 40px -24px rgba(26, 43, 133, .85); transition: background var(--t-slow) var(--ease), box-shadow var(--t-slow); }
 .hero::after { content: ""; position: absolute; top: -72px; right: -64px; width: 200px; height: 200px; border-radius: 50%; background: var(--lime-400); opacity: .12; pointer-events: none; }
 .hero > * { position: relative; z-index: 1; }
-.hero.over { background: radial-gradient(90% 90% at 100% 0%, #F07B6C 0%, rgba(240, 123, 108, 0) 60%), var(--neg); box-shadow: 0 20px 40px -24px rgba(210, 63, 49, .85); }
+/* Over budget: one red for every palette, dark enough that small white text stays above 4.5:1. */
+.hero.over { --on-dark-2: rgba(255, 255, 255, .95); --on-dark-3: rgba(255, 255, 255, .95); --on-dark-fill: rgba(0, 0, 0, .14); background: linear-gradient(165deg, #C93E31 0%, #B53124 100%); box-shadow: 0 20px 40px -24px rgba(181, 49, 36, .8); }
 .hero.over::after { background: #fff; opacity: .1; }
 .hero-top { display: flex; justify-content: space-between; align-items: center; }
 .hero-label { font-size: 14px; font-weight: 700; color: var(--on-dark-2); }

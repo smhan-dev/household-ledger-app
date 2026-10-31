@@ -1,0 +1,23 @@
+/* L. 올리브 & 망고 — palette candidate. Dark olive main with a bright mango key.
+   Overrides tokens in ../styles.css. See ../PALETTES.md. */
+:root {
+  --navy-900:#262E14; --navy-700:#38431F; --navy-500:#56662B;
+  --lime-400:#FFB547; --lime-600:#E0952A; --lime-ink:#3A2400;
+  --bg:#F5F6F4; --surface:#FFFFFF; --fill:#EDEFEA; --line:#E1E4DC;
+  --text-1:#171B12; --text-2:#444B3C; --text-3:#5F6657; --text-4:#A9AEA2;
+  --pos:#2C8C5F; --pos-soft:#E2F2E8; --pos-ink:#1E6C48;
+  --neg:#D0453A; --neg-soft:#FCE6E2; --neg-ink:#BC372C;
+  --warn-soft:#FFF4DC; --warn-ink:#6A4E10;
+}
+body { background:#E5E7E1; }
+.hero, .stat.hero-stat, .dark { background: linear-gradient(165deg, #4B5A2A 0%, #38431F 55%, #2B3417 100%); }
+.hero { box-shadow: 0 24px 40px -26px rgba(38,46,20,.85); }
+.hero::after, .stat.hero-stat::after { background:#FFB547; opacity:.1; }
+.dark::after { background:#FFB547; opacity:.14; filter: blur(30px); }
+.hero-badge { background: rgba(0,0,0,.2); color:#fff; }
+.hero.over::after { background:#fff; opacity:.08; }
+.btn-lime { box-shadow: inset 0 -2px 0 var(--lime-600), 0 14px 26px -16px rgba(56,67,31,.5); }
+.priv-pts span { background: rgba(255,181,71,.16); }
+.cal-d.good, .legend .lg-good { background:#FFF0D3; color:#764B00; box-shadow:none; }
+.preview { background:#F1F3EE; }
+.tabbar::before { background: linear-gradient(to top, var(--bg) 30%, rgba(245,246,244,0)); }
