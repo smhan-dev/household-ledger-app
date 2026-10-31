@@ -46,9 +46,26 @@ const fresh = () => ({
   profile: null,
   expenses: []
 });
-let S;
-try { S = JSON.parse(localStorage.getItem(STORE)) || fresh(); } catch (e) { S = fresh(); }
-const save = () => localStorage.setItem(STORE, JSON.stringify(S));
+/** Load saved data and drop anything malformed so a damaged entry cannot break the budget math. */
+function loadState() {
+  let s;
+  try { s = JSON.parse(localStorage.getItem(STORE)); } catch (e) { s = null; }
+  if (!s || typeof s !== 'object') return fresh();
+  const base = fresh();
+  s.lang = s.lang === 'en' ? 'en' : s.lang === 'ko' ? 'ko' : base.lang;
+  s.expenses = Array.isArray(s.expenses) ? s.expenses.filter(e => e && typeof e.id === 'string'
+    && Number.isInteger(e.amount) && e.amount > 0 && /^\d{4}-\d{2}-\d{2}$/.test(e.date)
+    && CATS.some(c => c.id === e.cat)) : [];
+  if (s.setupDone && !(s.profile && Number.isFinite(s.profile.daily) && s.profile.anchor && s.profile.payDate)) {
+    s.setupDone = false; s.profile = null;
+  }
+  return s;
+}
+let S = loadState();
+const save = () => {
+  try { localStorage.setItem(STORE, JSON.stringify(S)); }
+  catch (e) { toast(t('saveFailed')); }
+};
 
 const ui = {
   tab: 'today',
@@ -197,19 +214,19 @@ function langSeg() {
 function welcomeHTML() {
   return `<div class="dark on-dark">
     <div class="dark-top"><div class="logo"><span class="logo-mark">${ic('wallet')}</span>daypocket</div>${langSeg()}</div>
-    <div class="w-body step-anim">
-      <div class="w-kicker">${t('welcomeKicker')}</div>
+    <div class="dark-body step-anim">
+      <div class="eyebrow w-kicker">${t('welcomeKicker')}</div>
       <h1 class="w-title">${t('welcomeTitle')}</h1>
       <p class="w-sub">${t('welcomeSub')}</p>
       <div class="priv">
-        <div class="priv-h"><span class="lock">${ic('lock')}</span><span>${t('privTitle')}</span></div>
-        <p>${t('privBody')}</p>
-        <div class="priv-pts">${L().privPts.map(x => `<span>${x}</span>`).join('')}</div>
+        <div class="priv-h"><span class="lock">${ic('lock')}</span><span class="t-body-lg">${t('privTitle')}</span></div>
+        <p class="t-body">${t('privBody')}</p>
+        <div class="priv-pts">${L().privPts.map(x => `<span>${ic('check')}${x}</span>`).join('')}</div>
       </div>
     </div>
-    <div class="w-actions">
+    <div class="dark-actions">
       <button class="btn btn-lime" data-act="start">${t('start')}</button>
-      <button class="btn btn-ghost" data-act="demo">${t('demo')}</button>
+      <button class="btn btn-text" data-act="demo">${t('demo')}</button>
     </div></div>`;
 }
 
@@ -217,9 +234,9 @@ const STEP_KEY = { balance: 'bal', income: 'inc', extra: 'extra', fixed: 'fixed'
 function qHead(k, editing) {
   const pre = STEP_KEY[k];
   const hint = editing && k === 'balance' ? t('balEditHint') : t(pre + 'Hint');
-  return `<div class="q-eyebrow">${t(pre + 'Eyebrow')}</div>
-    <h1 class="q-title">${t(pre + 'Title')}</h1>
-    <p class="q-hint">${hint}</p><div class="q-space"></div>`;
+  return `<div class="eyebrow">${t(pre + 'Eyebrow')}</div>
+    <h1 class="q-title t-h1">${t(pre + 'Title')}</h1>
+    <p class="q-hint t-body">${hint}</p><div class="q-gap"></div>`;
 }
 
 const moneyField = (bind, val, ph = '0') =>
@@ -255,24 +272,24 @@ function stepBody(k, editing) {
     return `${qHead(k, editing)}<label class="big-money"><span>₩</span><input inputmode="numeric" data-money data-bind="balance" value="${fmtIn(d.balance)}" placeholder="0" autofocus></label>`;
   }
   if (k === 'income') {
-    const days = Array.from({ length: 28 }, (_, i) => i + 1);
+    const days = Array.from({ length: 30 }, (_, i) => i + 1);
     return `${qHead(k, editing)}
       <div class="sub-label">${t('salary')}</div>
       <label class="big-money sm"><span>₩</span><input inputmode="numeric" data-money data-bind="salary" value="${fmtIn(d.salary)}" placeholder="0"></label>
       <div class="sub-label">${t('payday')} <span class="num">${d.payday === 31 ? t('lastDay') : t('dayN', { n: d.payday })}</span></div>
       <div class="day-grid">${days.map(n => `<button class="${d.payday === n ? 'on' : ''}" data-act="payday" data-v="${n}">${n}</button>`).join('')}
         <button class="wide ${d.payday === 31 ? 'on' : ''}" data-act="payday" data-v="31">${t('lastDay')}</button></div>
-      <p class="q-hint">${t('paydayHint')}</p>`;
+      <p class="q-hint t-body">${t('paydayHint')}</p>`;
   }
   if (k === 'extra') {
     return `${qHead(k, editing)}${presetChips('incoming', EXTRA_PRESETS)}
-      <div class="rows" style="margin-top:16px">${d.incoming.map(it => rowHTML('incoming', it)).join('')}</div>
+      <div class="rows">${d.incoming.map(it => rowHTML('incoming', it)).join('')}</div>
       <button class="add-custom" data-act="custom" data-list="incoming">${ic('plus')}${t('custom')}</button>`;
   }
   if (k === 'fixed') {
     return `${qHead(k, editing)}
-      ${FIXED_PRESETS.map(g => `<div class="group"><div class="group-h">${t('groups.' + g.g)}</div>${presetChips('fixed', g.items)}</div>`).join('')}
-      <div class="tip">💡<span>${t('fixedTip')}</span></div>
+      ${FIXED_PRESETS.map(g => `<div class="group"><div class="group-h t-caption">${t('groups.' + g.g)}</div>${presetChips('fixed', g.items)}</div>`).join('')}
+      <div class="tip t-body"><span aria-hidden="true">💡</span><span>${t('fixedTip')}</span></div>
       <div class="sub-label">${t('selected')} <span class="num" id="fixedTotal">${fmt(sum(d.fixed, f => f.amount))}</span></div>
       <div class="rows">${d.fixed.map(it => rowHTML('fixed', it)).join('')}</div>
       <button class="add-custom" data-act="custom" data-list="fixed">${ic('plus')}${t('custom')}</button>`;
@@ -281,16 +298,16 @@ function stepBody(k, editing) {
     const yay = ui.debtFlash && d.debts.length === 0;
     return `${qHead(k, editing)}
       <button class="big-choice ${yay ? 'on' : ''}" data-act="noDebt">${yay ? t('noDebtYay') : t('noDebt')}</button>
-      <div class="or">${t('orDebt')}</div>
+      <div class="or t-caption">${t('orDebt')}</div>
       ${presetChips('debts', DEBT_PRESETS)}
-      <div class="rows" style="margin-top:16px">${d.debts.map(it => rowHTML('debts', it)).join('')}</div>
+      <div class="rows">${d.debts.map(it => rowHTML('debts', it)).join('')}</div>
       <button class="add-custom" data-act="custom" data-list="debts">${ic('plus')}${t('custom')}</button>`;
   }
   if (k === 'savings') {
     const opts = [100000, 300000, 500000, 1000000];
     return `${qHead(k, editing)}
       <label class="big-money"><span>₩</span><input inputmode="numeric" data-money data-bind="savings" value="${fmtIn(d.savings)}" placeholder="0"></label>
-      <div class="chips" style="margin-top:18px">${opts.map(v => `<button class="chip ${d.savings === v ? 'on' : ''}" data-act="savePick" data-v="${v}">${fmt(v)}</button>`).join('')}
+      <div class="chips" style="margin-top:var(--s5)">${opts.map(v => `<button class="chip ${d.savings === v ? 'on' : ''}" data-act="savePick" data-v="${v}">${fmt(v)}</button>`).join('')}
       <button class="chip ${d.savings === 0 ? 'on' : ''}" data-act="savePick" data-v="0">${t('savePass')}</button></div>`;
   }
   return '';
@@ -299,24 +316,24 @@ function stepBody(k, editing) {
 function resultHTML() {
   const r = calc(ui.draft);
   return `<div class="dark on-dark">
-    <div class="dark-top"><button class="icon-btn" style="color:#fff" data-act="obBack">${ic('chevL')}</button>${langSeg()}</div>
-    <div class="w-body step-anim">
-      <div class="res-label">${t('resLabel')}</div>
+    <div class="dark-top"><button class="icon-btn" data-act="obBack" aria-label="back">${ic('chevL')}</button>${langSeg()}</div>
+    <div class="dark-body step-anim">
+      <div class="res-label t-h3">${t('resLabel')}</div>
       <div class="res-amt num" id="countup" data-to="${r.daily}">${money(0)}</div>
-      <div class="res-suffix">${t('resSuffix')}</div>
-      <div class="res-week">${t('resWeek', { x: fmt(r.daily * 7) })}</div>
-      <div class="bd num">
-        <div class="bd-row"><span>${t('bdBalance')}</span><span>${fmt(ui.draft.balance || 0)}</span></div>
-        ${r.inc ? `<div class="bd-row"><span>${t('bdIncoming')}</span><span>${fmt(r.inc)}</span></div>` : ''}
-        <div class="bd-row"><span>${t('bdFixed')}</span><span>${fmt(r.fixed)}</span></div>
-        ${r.debt ? `<div class="bd-row"><span>${t('bdDebt')}</span><span>${fmt(r.debt)}</span></div>` : ''}
-        ${r.savings ? `<div class="bd-row"><span>${t('bdSavings')}</span><span>${fmt(r.savings)}</span></div>` : ''}
-        <div class="bd-row total"><span>${t('bdAvail')}</span><span>${fmt(r.avail)}</span></div>
-        <div class="bd-row"><span>${t('bdDays', { n: r.days })}</span><span></span></div>
+      <div class="t-h2">${t('resSuffix')}</div>
+      <div class="res-week t-body">${t('resWeek', { x: fmt(r.daily * 7) })}</div>
+      <div class="bd num t-body">
+        <div class="bd-row"><span>${t('bdBalance')}</span><b>${fmt(ui.draft.balance || 0)}</b></div>
+        ${r.inc ? `<div class="bd-row"><span>${t('bdIncoming')}</span><b>${fmt(r.inc)}</b></div>` : ''}
+        <div class="bd-row"><span>${t('bdFixed')}</span><b>${fmt(r.fixed)}</b></div>
+        ${r.debt ? `<div class="bd-row"><span>${t('bdDebt')}</span><b>${fmt(r.debt)}</b></div>` : ''}
+        ${r.savings ? `<div class="bd-row"><span>${t('bdSavings')}</span><b>${fmt(r.savings)}</b></div>` : ''}
+        <div class="bd-row total"><span>${t('bdAvail')}</span><b>${fmt(r.avail)}</b></div>
+        <div class="bd-row"><span>${t('bdDays', { n: r.days })}</span></div>
       </div>
-      ${r.daily < 10000 ? `<div class="res-tight">${t('resTight')}</div>` : ''}
+      ${r.daily < 10000 ? `<div class="res-tight t-body">${t('resTight')}</div>` : ''}
     </div>
-    <div class="w-actions"><button class="btn btn-lime" data-act="finish">${t('letsGo')}</button></div></div>`;
+    <div class="dark-actions"><button class="btn btn-lime" data-act="finish">${t('letsGo')}</button></div></div>`;
 }
 
 function onboardingHTML() {
@@ -328,12 +345,12 @@ function onboardingHTML() {
   return `<div class="ob">
     <div class="ob-top"><button class="icon-btn" data-act="obBack" aria-label="back">${ic('chevL')}</button>
       <div class="ob-progress"><i style="width:${(ui.step / total) * 100}%"></i></div>
-      <span class="ob-count num">${ui.step}/${total}</span></div>
+      <span class="ob-count num t-caption">${ui.step}/${total}</span></div>
     <div class="ob-body step-anim">${stepBody(k, false)}</div>
     <div class="ob-foot">
       <button class="btn btn-navy" id="nextBtn" data-act="obNext" ${stepValid(k) ? '' : 'disabled'}>${t('next')}</button>
-      ${k === 'extra' ? `<button class="btn btn-ghost" data-act="noneNext">${t('none')}</button>` : ''}
-      ${optional && k !== 'extra' && k !== 'debts' ? `<button class="btn btn-ghost" data-act="skipNext">${t('skip')}</button>` : ''}
+      ${k === 'extra' ? `<button class="btn btn-text" data-act="noneNext">${t('none')}</button>` : ''}
+      ${optional && k !== 'extra' && k !== 'debts' ? `<button class="btn btn-text" data-act="skipNext">${t('skip')}</button>` : ''}
     </div></div>`;
 }
 
@@ -350,15 +367,15 @@ function itemHTML(e) {
   const sub = [e.note ? t('cats.' + c.id) : '', time].filter(Boolean).join(' · ');
   return `<button class="item" data-act="openEdit" data-id="${e.id}">
     <span class="tile" style="background:${c.bg};color:${c.color}">${ic(c.icon)}</span>
-    <span class="item-main"><span class="item-title" style="display:block">${title}</span>${sub ? `<span class="item-sub" style="display:block">${sub}</span>` : ''}</span>
-    <span class="item-amt num">${fmt(e.amount)}</span></button>`;
+    <span class="item-main"><span class="item-title t-body-lg">${title}</span>${sub ? `<span class="item-sub">${sub}</span>` : ''}</span>
+    <span class="t-body-lg num">${fmt(e.amount)}</span></button>`;
 }
 
 function groupedList(list) {
   const groups = {};
   list.forEach(e => (groups[e.date] = groups[e.date] || []).push(e));
   return Object.keys(groups).sort().reverse().map(dt => `
-    <div class="grp-label"><span>${dayLabel(dt)}</span><span class="num">${fmt(sum(groups[dt], e => e.amount))}</span></div>
+    <div class="grp-label t-caption"><span>${dayLabel(dt)}</span><span class="num">${fmt(sum(groups[dt], e => e.amount))}</span></div>
     <div class="list">${groups[dt].sort((a, b) => b.ts - a.ts).map(itemHTML).join('')}</div>`).join('');
 }
 
@@ -372,29 +389,30 @@ function todayHTML() {
   const recent = sortedExpenses().slice(0, 6);
   const ratio = p.daily ? Math.max(0, Math.min(1, left / p.daily)) : 0;
   const wRatio = w.budget ? Math.max(0, Math.min(1, w.left / w.budget)) : 0;
+  const dleft = Math.max(0, diffDays(today(), parse(p.payDate)));
   return `${headerHTML()}
     <div class="date-line">${parse(td).toLocaleDateString(L().locale, { month: 'long', day: 'numeric', weekday: 'long' })}</div>
     <section class="hero ${over ? 'over' : ''}">
-      <div class="hero-label">${over ? t('overToday') : t('leftToday')}</div>
-      <span class="hero-amt num" id="heroAmt" data-v="${Math.abs(left)}">${money(Math.abs(left))}</span>
-      <div class="hero-sub">${over ? t('overSub', { b: fmt(p.daily) }) : spent === 0 ? t('fresh') : t('spentOf', { b: fmt(p.daily), s: fmt(spent) })}</div>
-      <div class="bar"><i style="width:${ratio * 100}%"></i></div>
-      <div class="hero-foot num"><span>${t('dailyIs', { b: fmt(p.daily) })}</span></div>
+      <div class="hero-top"><span class="hero-label">${over ? t('overToday') : t('leftToday')}</span>
+        ${cycleEnded ? '' : `<span class="hero-badge num">${t('paydayBadge', { n: dleft })}</span>`}</div>
+      <span class="hero-amt t-display num" id="heroAmt" data-v="${Math.abs(left)}">${money(Math.abs(left))}</span>
+      <div class="hero-sub t-body num">${over ? t('overSub', { b: fmt(p.daily) }) : spent === 0 ? t('fresh', { b: fmt(p.daily) }) : t('spentOf', { b: fmt(p.daily), s: fmt(spent) })}</div>
+      <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(ratio * 100)}"><i style="width:${ratio * 100}%"></i></div>
     </section>
     ${cycleEnded ? `<div class="banner"><span>${t('cycleEnded')}</span><button data-act="edit" data-step="1">${t('recalc')}</button></div>` : ''}
     <section class="card week">
       <div class="week-top">
         <div><div class="week-label">${t('weekLeft')}</div>
-          <div class="week-range">${fmtDate(ymd(w.mon), { month: 'short', day: 'numeric' })} – ${fmtDate(ymd(w.sun), { month: 'short', day: 'numeric' })}</div>
-          <div class="week-amt num ${w.left < 0 ? 'neg' : ''}">${money(w.left)}</div></div>
-        <div class="week-of num">${t('weekOf', { b: fmt(w.budget) })}</div>
+          <div class="week-range t-caption">${fmtDate(ymd(w.mon), { month: 'short', day: 'numeric' })} – ${fmtDate(ymd(w.sun), { month: 'short', day: 'numeric' })}</div></div>
+        <div class="week-of t-caption num">${t('weekOf', { b: fmt(w.budget) })}</div>
       </div>
+      <div class="week-amt t-h2 num ${w.left < 0 ? 'neg' : ''}">${money(w.left)}</div>
       <div class="bar"><i style="width:${wRatio * 100}%"></i></div>
       <div class="dots">${w.dots.map(d => `<div class="dot ${d.st}"><i>${d.st === 'zero' || d.st === 'good' ? ic('check') : d.st === 'over' ? ic('x') : ''}</i>${d.label}</div>`).join('')}</div>
       ${w.past > 0 ? `<div class="week-note pos num">${t('saved', { x: fmt(w.past) })}</div>` : w.past < 0 ? `<div class="week-note neg num">${t('overPast', { x: fmt(w.past) })}</div>` : ''}
     </section>
-    <div class="sec-h"><h2>${t('recent')}</h2>${recent.length ? `<button data-act="tab" data-v="history">${t('seeAll')}</button>` : ''}</div>
-    ${recent.length ? groupedList(recent) : `<div class="empty">${t('empty')}</div>`}`;
+    <div class="sec-h"><h2 class="t-h3">${t('recent')}</h2>${recent.length ? `<button data-act="tab" data-v="history">${t('seeAll')}</button>` : ''}</div>
+    ${recent.length ? groupedList(recent) : `<div class="empty t-body">${t('empty')}</div>`}`;
 }
 
 function historyHTML() {
@@ -410,7 +428,7 @@ function historyHTML() {
   const offset = (first.getDay() + 6) % 7;
   const anchor = p.anchor;
 
-  let cells = L().weekdays.map(w => `<div class="cal-h">${w}</div>`).join('');
+  let cells = L().weekdays.map(w => `<div class="cal-h t-caption">${w}</div>`).join('');
   for (let i = 0; i < offset; i++) cells += '<div></div>';
   for (let d = 1; d <= n; d++) {
     const s = `${ui.histMonth}-${pad(d)}`, sp = spentOn(s);
@@ -423,15 +441,15 @@ function historyHTML() {
     cells += `<button class="cal-d ${st}" data-act="histDay" data-v="${s}"><span class="num">${d}</span>${sp ? `<small class="num">${short(sp)}</small>` : ''}</button>`;
   }
 
-  return `${headerHTML()}<h1 class="page-title">${t('historyTitle')}</h1>
+  return `${headerHTML()}<h1 class="page-title t-h1">${t('historyTitle')}</h1>
     <section class="card">
-      <div class="month-sw"><button class="icon-btn" data-act="histMonth" data-v="-1">${ic('chevL')}</button><b>${monthLabel}</b><button class="icon-btn" data-act="histMonth" data-v="1">${ic('chevR')}</button></div>
-      <div class="month-stat"><div><div class="stat-l">${t('monthTotal', { m: monthShort })}</div><div class="big num">${money(total)}</div></div>
-        <div class="avg num">${t('perDay', { x: fmt(lastDay ? total / lastDay : 0) })}</div></div>
+      <div class="month-sw"><button class="icon-btn" data-act="histMonth" data-v="-1" aria-label="previous month">${ic('chevL')}</button><b class="t-h3">${monthLabel}</b><button class="icon-btn" data-act="histMonth" data-v="1" aria-label="next month">${ic('chevR')}</button></div>
+      <div class="month-stat"><div><div class="stat-l">${t('monthTotal', { m: monthShort })}</div><div class="t-h2 num">${money(total)}</div></div>
+        <div class="avg t-caption num">${t('perDay', { x: fmt(lastDay ? total / lastDay : 0) })}</div></div>
       <div class="cal">${cells}</div>
-      <div class="legend"><span><i style="background:#E4F6B5"></i>${t('lgGood')}</span><span><i style="background:var(--green)"></i>${t('lgZero')}</span><span><i style="background:#FFC9C1"></i>${t('lgOver')}</span></div>
+      <div class="legend"><span><i class="lg-good"></i>${t('lgGood')}</span><span><i class="lg-zero"></i>${t('lgZero')}</span><span><i class="lg-over"></i>${t('lgOver')}</span></div>
     </section>
-    <label class="search">${ic('search')}<input id="histSearch" value="${esc(ui.histQuery)}" placeholder="${t('searchPh')}"></label>
+    <label class="search">${ic('search')}<input id="histSearch" type="search" autocomplete="off" value="${esc(ui.histQuery)}" placeholder="${t('searchPh')}" aria-label="${t('searchPh')}"></label>
     <div class="chips scroll hist-chips">
       <button class="chip ${ui.histCat === 'all' ? 'on' : ''}" data-act="histCat" data-v="all">${t('all')}</button>
       ${CATS.map(c => `<button class="chip ${ui.histCat === c.id ? 'on' : ''}" data-act="histCat" data-v="${c.id}">${t('cats.' + c.id)}</button>`).join('')}
@@ -446,14 +464,14 @@ function historyListHTML() {
     && (!ui.histDay || e.date === ui.histDay)
     && (ui.histCat === 'all' || e.cat === ui.histCat)
     && (!q || (e.note || '').toLowerCase().includes(q) || t('cats.' + e.cat).toLowerCase().includes(q)));
-  return list.length ? groupedList(list) : `<div class="empty" style="margin-top:16px">${t('noResults')}</div>`;
+  return list.length ? groupedList(list) : `<div class="empty t-body" style="margin-top:var(--s4)">${t('noResults')}</div>`;
 }
 
 function donutHTML() {
   const month = ymd(today()).slice(0, 7);
   const exp = S.expenses.filter(e => e.date.startsWith(month));
   const total = sum(exp, e => e.amount);
-  if (!total) return `<div class="empty">${t('noData')}</div>`;
+  if (!total) return `<p class="t-body" style="color:var(--text-3);text-align:center">${t('noData')}</p>`;
   const parts = CATS.map(c => ({ c, v: sum(exp.filter(e => e.cat === c.id), e => e.amount) })).filter(x => x.v).sort((a, b) => b.v - a.v);
   const R = 50, C = 2 * Math.PI * R;
   let acc = 0;
@@ -463,7 +481,7 @@ function donutHTML() {
     acc += len;
     return s;
   }).join('');
-  return `<div class="donut-wrap"><div class="donut"><svg viewBox="0 0 130 130"><circle cx="65" cy="65" r="${R}" fill="none" stroke="#EEF1FB" stroke-width="18"/>${segs}</svg>
+  return `<div class="donut-wrap"><div class="donut"><svg viewBox="0 0 130 130" aria-hidden="true"><circle cx="65" cy="65" r="${R}" fill="none" stroke="#EDF0F8" stroke-width="18"/>${segs}</svg>
     <div class="donut-c"><small>${t('total')}</small><b class="num">${short(total)}</b></div></div>
     <div class="lg">${parts.map(x => `<div class="lg-row"><i style="background:${x.c.color}"></i><span>${t('cats.' + x.c.id)}</span><b class="num">${Math.round((x.v / total) * 100)}%</b></div>`).join('')}</div></div>`;
 }
@@ -480,40 +498,42 @@ function planHTML() {
   const row = (l, v, sub = '') => `<div class="prow"><span>${esc(l)}${sub ? `<small>${sub}</small>` : ''}</span><b class="num">${v}</b></div>`;
   const none = `<div class="prow muted"><span>${t('nothing')}</span></div>`;
 
-  return `${headerHTML()}<h1 class="page-title">${t('planTitle')}</h1>
+  const balanceNow = estBalance() - spentOn(ymd(td));
+  return `${headerHTML()}<h1 class="page-title t-h1">${t('planTitle')}</h1>
     <div class="stat-grid">
-      <div class="stat wide"><div class="stat-l">${t('cycleLeft')}</div><div class="stat-v num">${money(cycleLeft)}</div>
-        <div class="bar"><i style="width:${ratio * 100}%"></i></div><div class="stat-s num">${t('ofX', { x: fmt(cycleBudget) })}</div></div>
-      <div class="stat"><div class="stat-l">${t('estBalance')}</div><div class="stat-v num">${money(estBalance() - spentOn(ymd(td)))}</div></div>
+      <div class="stat hero-stat"><div class="stat-l">${t('cycleLeft')}</div><div class="stat-v num">${money(cycleLeft)}</div>
+        <div class="bar"><i style="width:${ratio * 100}%"></i></div><div class="stat-s t-caption num">${t('ofX', { x: fmt(cycleBudget) })}</div></div>
+      <div class="stat"><div class="stat-l">${t('estBalance')}</div><div class="stat-v num">${money(balanceNow)}</div></div>
       <div class="stat"><div class="stat-l">${t('dDay')}</div><div class="stat-v num">${t('dDayV', { n: dleft })}</div></div>
       <div class="stat"><div class="stat-l">${t('dailyBudget')}</div><div class="stat-v num">${money(p.daily)}</div></div>
       <div class="stat"><div class="stat-l">${t('weekBudget')}</div><div class="stat-v num">${money(p.daily * 7)}</div></div>
     </div>
-    <div class="sec-h"><h2>${t('byCat')}</h2></div>
+    <div class="sec-h"><h2 class="t-h3">${t('byCat')}</h2></div>
     <section class="card">${donutHTML()}</section>
-    <div class="sec-h"><h2>${t('manage')}</h2></div>
-    ${sec(t('balanceSec'), 1, null, row(t('estBalance'), fmt(estBalance())))}
+    <div class="sec-h"><h2 class="t-h3">${t('manage')}</h2></div>
+    ${sec(t('balanceSec'), 1, null, row(t('estBalance'), fmt(balanceNow)))}
     ${sec(t('incomeSec'), 2, null, row(t('incomeRow', { d: p.payday === 31 ? t('lastDay') : p.payday }), fmt(p.salary || 0)))}
     ${sec(t('fixedSec'), 4, fmt(sum(p.fixed, f => f.amount)), p.fixed.length ? p.fixed.map(f => row(f.name || '—', fmt(f.amount || 0), f.day ? t('dayN', { n: f.day }) : '')).join('') : none)}
     ${sec(t('extraSec'), 3, p.incoming.length ? fmt(sum(p.incoming, f => f.amount)) : null, p.incoming.length ? p.incoming.map(f => row(f.name || '—', fmt(f.amount || 0), f.date ? fmtDate(f.date, { month: 'short', day: 'numeric' }) : '')).join('') : none)}
     ${sec(t('debtSec'), 5, p.debts.length ? fmt(sum(p.debts, d => d.remaining)) : null, p.debts.length ? p.debts.map(d => {
       const months = d.monthly ? Math.ceil((d.remaining || 0) / d.monthly) : 0;
-      return row(d.name || '—', `${fmt(d.monthly || 0)}`, months ? t('monthsLeft', { n: months }) : '');
+      const sub = [t('debtMonthly', { x: fmt(d.monthly || 0) }), months ? t('monthsLeft', { n: months }) : ''].filter(Boolean).join(' · ');
+      return row(d.name || '—', fmt(d.remaining || 0), sub);
     }).join('') : none)}
     ${sec(t('saveSec'), 6, null, row(t('perMonth'), fmt(p.savings || 0)))}
-    <div class="sec-h"><h2>${t('settings')}</h2></div>
+    <div class="sec-h"><h2 class="t-h3">${t('settings')}</h2></div>
     <div class="pcard">
       <div class="set-row"><span>${t('language')}</span>${langSeg()}</div>
       <button class="set-row" data-act="export"><span>${t('export')}</span>${ic('download')}</button>
       <button class="set-row danger" data-act="reset"><span>${t('reset')}</span>${ic('trash')}</button>
     </div>
-    <div class="priv-note">${ic('lock')}${t('privNote')}</div>`;
+    <div class="priv-note">${ic('lock')}<span>${t('privNote')}</span></div>`;
 }
 
 function editHTML() {
   const k = STEPS[ui.editStep];
   return `<div class="edit"><div class="edit-panel">
-    <div class="ob-top"><button class="icon-btn" data-act="editClose" aria-label="close">${ic('x')}</button><div style="flex:1"></div></div>
+    <div class="ob-top"><button class="icon-btn" data-act="editClose" aria-label="close">${ic('x')}</button></div>
     <div class="ob-body" id="editBody">${stepBody(k, true)}</div>
     <div class="ob-foot"><button class="btn btn-navy" id="nextBtn" data-act="editSave" ${stepValid(k) ? '' : 'disabled'}>${t('saveRecalc')}</button></div>
   </div></div>`;
@@ -534,15 +554,50 @@ function openSheet(e) {
     ? { mode: 'edit', id: e.id, cat: e.cat, amount: String(e.amount), note: e.note || '', date: e.date }
     : { mode: 'add', cat: 'food', amount: '', note: '', date: ymd(today()) };
   renderSheet();
+  // A history entry lets the Android back button (and browser back) close the sheet instead of leaving the app.
+  history.pushState({ sheet: true }, '');
   requestAnimationFrame(() => requestAnimationFrame(() => document.querySelector('.sheet-wrap')?.classList.add('open')));
 }
-function closeSheet() {
+function closeSheet(fromPopState) {
   const w = document.querySelector('.sheet-wrap');
-  if (!w) return;
+  if (!w || !ui.sheet) return;
+  const sheet = w.querySelector('.sheet');
+  sheet.classList.remove('dragging');
+  sheet.style.transform = '';
   w.classList.remove('open');
   ui.sheet = null;
-  setTimeout(() => { if (!ui.sheet) document.getElementById('sheetRoot').innerHTML = ''; }, 300);
+  if (!fromPopState && history.state && history.state.sheet) history.back();
+  setTimeout(() => { if (!ui.sheet) document.getElementById('sheetRoot').innerHTML = ''; }, 400);
 }
+window.addEventListener('popstate', () => { if (ui.sheet) closeSheet(true); });
+
+/* Drag the handle down to close the sheet. */
+let drag = null;
+document.addEventListener('pointerdown', ev => {
+  if (!ev.target.closest('[data-grab]') || !ui.sheet) return;
+  const sheet = document.querySelector('.sheet');
+  drag = { y0: ev.clientY, dy: 0, sheet };
+  sheet.classList.add('dragging');
+  ev.target.setPointerCapture?.(ev.pointerId);
+});
+document.addEventListener('pointermove', ev => {
+  if (!drag) return;
+  drag.dy = Math.max(0, ev.clientY - drag.y0);
+  drag.sheet.style.transform = `translateY(${drag.dy}px)`;
+});
+document.addEventListener('pointerup', () => {
+  if (!drag) return;
+  const { sheet, dy } = drag;
+  drag = null;
+  sheet.classList.remove('dragging');
+  if (dy > 120) closeSheet();
+  else sheet.style.transform = '';
+});
+
+const haptic = () => { try { navigator.vibrate && navigator.vibrate(12); } catch (e) { /* not supported */ } };
+const NOTE_MAX = 40;
+const AMOUNT_MAX = 999999999;
+const isValidDate = s => /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(parse(s)) && s <= ymd(today());
 
 function noteSuggestions(cat) {
   const used = [];
@@ -559,16 +614,16 @@ function sheetInner() {
   const leftAfter = p.daily - others - amt;
   const isToday = s.date === td;
   const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '000', '0', 'back'];
-  return `<div class="grab"></div>
-    <div class="sh-top"><h3>${s.mode === 'edit' ? t('sheetEdit') : t('sheetAdd')}</h3>
+  return `<div class="grab" data-grab aria-hidden="true"></div>
+    <div class="sh-top"><h3 class="t-h3">${s.mode === 'edit' ? t('sheetEdit') : t('sheetAdd')}</h3>
       <div class="acts">${s.mode === 'edit' ? `<button class="icon-btn" data-act="delExp" aria-label="delete">${ic('trash')}</button>` : ''}<button class="icon-btn" data-act="closeSheet" aria-label="close">${ic('x')}</button></div></div>
     <div class="cats">${CATS.map(x => {
       const on = x.id === s.cat;
       return `<button class="cat ${on ? 'on' : ''}" data-act="cat" data-v="${x.id}"><span class="tile" style="background:${on ? x.color : x.bg};color:${on ? '#fff' : x.color}">${ic(x.icon)}</span>${t('cats.' + x.id)}</button>`;
     }).join('')}</div>
-    <div class="amt num ${amt ? '' : 'ph'}">${money(amt)}<span class="caret"></span></div>
+    <div class="amt t-display-sm num ${amt ? '' : 'ph'} ${ui.bump ? 'bump' : ''}" aria-live="polite">${money(amt)}<span class="caret"></span></div>
     <div class="quick">${c.quick.map(v => `<button class="num" data-act="quick" data-v="${v}">${fmt(v)}</button>`).join('')}</div>
-    <label class="note-box">${ic('pencil')}<input id="noteIn" value="${esc(s.note)}" placeholder="${t('notePh')}" maxlength="40"></label>
+    <label class="note-box">${ic('pencil')}<input id="noteIn" value="${esc(s.note)}" placeholder="${t('notePh')}" maxlength="${NOTE_MAX}" autocomplete="off" aria-label="${t('notePh')}"></label>
     <div class="chips scroll note-chips">${noteSuggestions(s.cat).map(n => `<button class="chip ${s.note === n ? 'on' : ''}" data-act="noteChip" data-v="${esc(n)}">${esc(n)}</button>`).join('')}</div>
     <div class="meta">
       <button class="chip ${s.date === td ? 'on' : ''}" data-act="dateChip" data-v="${td}">${t('today')}</button>
@@ -576,7 +631,7 @@ function sheetInner() {
       <input type="date" id="dateIn" value="${s.date}" max="${td}">
     </div>
     ${isToday ? `<div class="preview ${leftAfter < 0 ? 'neg' : ''}"><span>${leftAfter < 0 ? t('afterSaveOver') : t('afterSave')}</span><b class="num">${fmt(Math.abs(leftAfter))}</b></div>` : ''}
-    <div class="keypad">${keys.map(k => `<button class="${k === '000' ? 'sm' : ''}" data-act="key" data-v="${k}">${k === 'back' ? ic('back') : k}</button>`).join('')}</div>
+    <div class="keypad">${keys.map(k => `<button class="num ${k === '000' ? 'sm' : ''}" data-act="key" data-v="${k}" ${k === 'back' ? 'aria-label="delete digit"' : ''}>${k === 'back' ? ic('back') : k}</button>`).join('')}</div>
     <button class="btn btn-lime" data-act="saveExp" ${amt > 0 ? '' : 'disabled'}>${t('saveBtn')}</button>`;
 }
 
@@ -595,9 +650,12 @@ function renderSheet() {
 }
 
 function saveExpense() {
-  const s = ui.sheet, amount = Number(s.amount || 0);
-  if (!amount) return;
-  const note = s.note.trim();
+  const s = ui.sheet;
+  if (!s) return; // sheet already closing: ignore a second tap so the expense is not saved twice
+  const amount = Number(s.amount || 0);
+  if (!Number.isInteger(amount) || amount <= 0 || amount > AMOUNT_MAX) return;
+  if (!isValidDate(s.date)) { toast(t('badDate')); return; }
+  const note = s.note.trim().slice(0, NOTE_MAX);
   if (s.mode === 'edit') {
     const e = S.expenses.find(x => x.id === s.id);
     const before = { ...e };
@@ -611,11 +669,13 @@ function saveExpense() {
     toast(t('toastAdded'), true);
   }
   save();
+  haptic();
   closeSheet();
   render();
 }
 
 function deleteExpense() {
+  if (!ui.sheet) return;
   const idx = S.expenses.findIndex(x => x.id === ui.sheet.id);
   if (idx < 0) return;
   ui.undo = { type: 'delete', item: S.expenses[idx] };
@@ -636,6 +696,21 @@ function undo() {
   save();
   render();
   hideToast();
+}
+
+/**
+ * CSV for spreadsheet apps. Cells that start with = + - @ (or tab/CR) are prefixed with an apostrophe
+ * so Excel/Sheets show them as text instead of running them as formulas (CSV injection).
+ */
+function csvCell(v) {
+  let s = String(v ?? '');
+  if (typeof v !== 'number' && /^[=+\-@\t\r]/.test(s)) s = "'" + s;
+  return `"${s.replace(/"/g, '""')}"`;
+}
+function toCSV(list) {
+  const head = S.lang === 'ko' ? ['날짜', '카테고리', '금액', '메모'] : ['date', 'category', 'amount', 'note'];
+  return [head, ...list.map(e => [e.date, t('cats.' + e.cat), e.amount, e.note || ''])]
+    .map(r => r.map(csvCell).join(',')).join('\r\n');
 }
 
 /* ---------------- toast ---------------- */
@@ -826,10 +901,10 @@ document.addEventListener('click', ev => {
       if (v === 'back') a = a.slice(0, -1);
       else if (a.length < 9) a = (a + v).replace(/^0+/, '');
       ui.sheet.amount = a.slice(0, 9);
-      renderSheet(); break;
+      ui.bump = true; renderSheet(); ui.bump = false; break;
     }
     case 'quick':
-      ui.sheet.amount = v; renderSheet(); break;
+      ui.sheet.amount = v; ui.bump = true; renderSheet(); ui.bump = false; break;
     case 'noteChip':
       ui.sheet.note = ui.sheet.note === v ? '' : v; renderSheet(); break;
     case 'dateChip':
@@ -862,12 +937,15 @@ document.addEventListener('click', ev => {
     case 'editSave':
       commitProfile(ui.draft); ui.editStep = null; ui.draft = null; save(); render(); toast(t('toastSaved')); break;
     case 'export': {
-      const rows = [['date', 'category', 'amount', 'note'], ...sortedExpenses().map(e => [e.date, e.cat, e.amount, e.note || ''])];
-      const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+      const csv = toCSV(sortedExpenses());
+      const url = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv' }));
+      a.href = url;
       a.download = `daypocket-${ymd(today())}.csv`;
-      a.click(); break;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast(t('exported'));
+      break;
     }
     case 'reset':
       if (confirm(t('resetConfirm'))) {
@@ -907,6 +985,7 @@ document.addEventListener('input', ev => {
 
 document.addEventListener('keydown', ev => {
   if (ev.key === 'Escape' && ui.sheet) closeSheet();
+  else if (ev.key === 'Escape' && ui.editStep !== null) { ui.editStep = null; ui.draft = null; render(); }
   if (ev.key === 'Enter' && ev.target.matches('[data-bind]') && !S.setupDone) document.getElementById('nextBtn')?.click();
 });
 
