@@ -606,6 +606,13 @@ function noteSuggestions(cat) {
   return [...used.slice(0, 3), ...base.filter(b => !used.includes(b))].slice(0, 6);
 }
 
+// Slider window: a 100-multiple max that comfortably covers the current amount so large
+// keypad entries stay reachable, capped at AMOUNT_MAX and never below 100,000.
+function sliderMax(amt) {
+  const m = (Math.ceil(amt / 100000) + 1) * 100000;
+  return Math.min(Math.max(100000, m), Math.floor(AMOUNT_MAX / 100) * 100);
+}
+
 function sheetInner() {
   const s = ui.sheet, p = S.profile, td = ymd(today()), yd = ymd(addDays(today(), -1));
   const amt = Number(s.amount || 0);
@@ -622,6 +629,9 @@ function sheetInner() {
       return `<button class="cat ${on ? 'on' : ''}" data-act="cat" data-v="${x.id}"><span class="tile" style="background:${on ? x.color : x.bg};color:${on ? '#fff' : x.color}">${ic(x.icon)}</span>${t('cats.' + x.id)}</button>`;
     }).join('')}</div>
     <div class="amt t-display-sm num ${amt ? '' : 'ph'} ${ui.bump ? 'bump' : ''}" aria-live="polite">${money(amt)}<span class="caret"></span></div>
+    <div class="amt-slider">
+      <input type="range" id="amtSlider" class="amt-range" min="0" max="${sliderMax(amt)}" step="100" value="${Math.floor(amt / 100) * 100}" aria-label="${t('slideLabel')}" aria-valuetext="${fmt(amt)}">
+    </div>
     <div class="quick">${c.quick.map(v => `<button class="num" data-act="quick" data-v="${v}">${fmt(v)}</button>`).join('')}</div>
     <label class="note-box">${ic('pencil')}<input id="noteIn" value="${esc(s.note)}" placeholder="${t('notePh')}" maxlength="${NOTE_MAX}" autocomplete="off" aria-label="${t('notePh')}"></label>
     <div class="chips scroll note-chips">${noteSuggestions(s.cat).map(n => `<button class="chip ${s.note === n ? 'on' : ''}" data-act="noteChip" data-v="${esc(n)}">${esc(n)}</button>`).join('')}</div>
@@ -959,6 +969,31 @@ document.addEventListener('click', ev => {
 
 document.addEventListener('input', ev => {
   const el = ev.target;
+  if (el.id === 'amtSlider' && ui.sheet) {
+    const newVal = Number(el.value);                 // already a 100-multiple (step=100)
+    const prevVal = Number(ui.sheet.amount || 0);
+    // Buzz once per event when the value crosses into a different 1,000-KRW bucket.
+    // Suppressed under prefers-reduced-motion, consistent with the project's motion philosophy.
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!reduce && Math.floor(newVal / 1000) !== Math.floor(prevVal / 1000)) haptic();
+    ui.sheet.amount = String(newVal);
+    // Update live without a full renderSheet() so the slider keeps focus during drag.
+    const p = S.profile, td = ymd(today());
+    const amtEl = document.querySelector('.sheet .amt');
+    if (amtEl) { amtEl.innerHTML = `${money(newVal)}<span class="caret"></span>`; amtEl.classList.toggle('ph', newVal === 0); }
+    el.setAttribute('aria-valuetext', fmt(newVal));
+    const prev = document.querySelector('.sheet .preview');
+    if (prev && ui.sheet.date === td) {
+      const others = sum(S.expenses.filter(e => e.date === ui.sheet.date && e.id !== ui.sheet.id), e => e.amount);
+      const leftAfter = p.daily - others - newVal;
+      prev.classList.toggle('neg', leftAfter < 0);
+      prev.querySelector('span').textContent = leftAfter < 0 ? t('afterSaveOver') : t('afterSave');
+      prev.querySelector('b').textContent = fmt(Math.abs(leftAfter));
+    }
+    const saveBtn = document.querySelector('.sheet [data-act="saveExp"]');
+    if (saveBtn) saveBtn.disabled = !(newVal > 0);
+    return;
+  }
   if (el.id === 'noteIn' && ui.sheet) { ui.sheet.note = el.value; return; }
   if (el.id === 'dateIn' && ui.sheet) { if (el.value) { ui.sheet.date = el.value; renderSheet(); } return; }
   if (el.id === 'histSearch') {

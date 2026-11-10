@@ -45,6 +45,7 @@
 
   /* size */
   --tap: 44px; --chip-h: 40px; --btn-h: 56px; --input-h: 48px; --tile: 44px;
+  --slider-track: 6px; --slider-thumb: 28px;
 
   /* motion */
   --ease: cubic-bezier(.2, .8, .2, 1);
@@ -398,6 +399,17 @@ html[lang="ko"] .eyebrow, html[lang="ko"] .pill-private { letter-spacing: 0; }
 @keyframes bump { 40% { transform: scale(1.04); } }
 .quick { display: flex; justify-content: center; gap: var(--s2); }
 .quick button { height: 36px; padding: 0 var(--s3); border-radius: var(--r-pill); background: var(--fill); color: var(--navy-700); font-size: 12px; font-weight: 800; }
+
+/* fine-adjust amount slider: 100-KRW step, coexists with the keypad */
+.amt-slider { display: flex; align-items: center; margin: var(--s2) 0 var(--s3); padding: 0 var(--s1); }
+.amt-range { -webkit-appearance: none; appearance: none; flex: 1; height: var(--tap); background: transparent; cursor: pointer; }
+.amt-range:focus { outline: none; }
+.amt-range:focus-visible { outline: 3px solid var(--navy-500); outline-offset: 2px; border-radius: var(--r-pill); }
+.amt-range::-webkit-slider-runnable-track { height: var(--slider-track); border-radius: var(--r-pill); background: var(--fill); }
+.amt-range::-moz-range-track { height: var(--slider-track); border-radius: var(--r-pill); background: var(--fill); }
+.amt-range::-moz-range-progress { height: var(--slider-track); border-radius: var(--r-pill); background: var(--navy-700); }
+.amt-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: var(--slider-thumb); height: var(--slider-thumb); margin-top: calc((var(--slider-track) - var(--slider-thumb)) / 2); border-radius: var(--r-pill); background: var(--navy-700); border: 3px solid var(--surface); box-shadow: 0 1px 4px -1px var(--scrim); }
+.amt-range::-moz-range-thumb { width: var(--slider-thumb); height: var(--slider-thumb); border-radius: var(--r-pill); background: var(--navy-700); border: 3px solid var(--surface); box-shadow: 0 1px 4px -1px var(--scrim); }
 .note-box { display: flex; align-items: center; gap: var(--s2); height: var(--input-h); margin-top: var(--s5); padding: 0 var(--s4); border-radius: var(--r-md); background: var(--fill); color: var(--text-3); }
 .note-box input { flex: 1; font-size: 16px; font-weight: 600; color: var(--text-1); }
 .note-box input::placeholder { color: var(--text-4); font-weight: 500; }
