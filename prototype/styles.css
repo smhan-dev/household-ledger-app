@@ -28,7 +28,7 @@
   --pos-ink: #157A4B;
   --neg: #D23F31;
   --neg-soft: #FDE8E5;
-  --neg-ink: #C7362A;
+  --neg-ink: #C1362B;
   --warn-soft: #FFF6D6;
   --warn-ink: #6B5300;
   --scrim: rgba(18, 23, 51, .45);
@@ -265,7 +265,8 @@ html[lang="ko"] .eyebrow, html[lang="ko"] .pill-private { letter-spacing: 0; }
 .dot i { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--fill); color: transparent; font-style: normal; }
 .dot i svg.i { width: 16px; height: 16px; stroke-width: 3; }
 .dot.good i { background: var(--lime-400); color: var(--lime-ink); }
-.dot.zero i { background: var(--pos); color: #fff; }
+.dot.zero i { background: var(--pos-ink); color: #fff; }
+.dot i b { font-size: 14px; font-weight: 800; line-height: 1; }
 .dot.over i { background: var(--neg-soft); color: var(--neg-ink); }
 .dot.today { color: var(--navy-700); font-weight: 800; }
 .dot.today i { background: var(--surface); box-shadow: inset 0 0 0 2.5px var(--navy-700); }
@@ -310,8 +311,9 @@ html[lang="ko"] .eyebrow, html[lang="ko"] .pill-private { letter-spacing: 0; }
 .stat-l { font-size: 12px; font-weight: 700; color: var(--text-3); }
 .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--s1); margin-top: var(--s5); }
 .cal-h { padding-bottom: var(--s1); text-align: center; color: var(--text-3); }
-.cal-d { aspect-ratio: 1 / 1.1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; border-radius: var(--r-sm); font-size: 14px; font-weight: 700; color: var(--text-2); transition: background var(--t-fast); }
+.cal-d { position: relative; aspect-ratio: 1 / 1.1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; border-radius: var(--r-sm); font-size: 14px; font-weight: 700; color: var(--text-2); transition: background var(--t-fast); }
 .cal-d small { font-size: 10px; font-weight: 700; }
+.cal-d svg.mk { position: absolute; top: 3px; right: 3px; width: 10px; height: 10px; stroke-width: 3.5; }
 .cal-d.good { background: #EEF9CF; color: #46600A; }
 .cal-d.zero { background: var(--pos-soft); color: var(--pos-ink); }
 .cal-d.over { background: var(--neg-soft); color: var(--neg-ink); }
@@ -320,7 +322,10 @@ html[lang="ko"] .eyebrow, html[lang="ko"] .pill-private { letter-spacing: 0; }
 .cal-d.sel { background: var(--navy-700); color: #fff; box-shadow: none; }
 .legend { display: flex; gap: var(--s4); margin-top: var(--s4); font-size: 12px; font-weight: 600; color: var(--text-3); }
 .legend span { display: flex; align-items: center; gap: 6px; }
-.legend i { width: 12px; height: 12px; border-radius: 4px; }
+.legend i { width: 16px; height: 16px; border-radius: 4px; display: grid; place-items: center; font-style: normal; font-size: 10px; font-weight: 800; }
+.legend .lg-zero { color: var(--pos-ink); }
+.legend .lg-over { color: var(--neg-ink); }
+.legend i svg.i { width: 10px; height: 10px; stroke-width: 3.5; }
 .legend .lg-good { background: #EEF9CF; box-shadow: inset 0 0 0 1px #D5EE93; }
 .legend .lg-zero { background: var(--pos-soft); box-shadow: inset 0 0 0 1px #B5E3CB; }
 .legend .lg-over { background: var(--neg-soft); box-shadow: inset 0 0 0 1px #F5BDB5; }
@@ -387,7 +392,7 @@ html[lang="ko"] .eyebrow, html[lang="ko"] .pill-private { letter-spacing: 0; }
 .sh-top { display: flex; justify-content: space-between; align-items: center; }
 .sh-top .acts { display: flex; margin-right: calc(-1 * var(--s2)); }
 .cats { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--s1); margin-top: var(--s3); }
-.cat { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: var(--s1) 0; font-size: 12px; font-weight: 600; color: var(--text-3); }
+.cat { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; padding: var(--s1) 0; font-size: 12px; font-weight: 600; color: var(--text-3); white-space: nowrap; overflow-wrap: normal; letter-spacing: -0.02em; }
 .cat .tile { transition: transform var(--t-fast) var(--ease), background var(--t-fast), color var(--t-fast); }
 .cat.on { font-weight: 800; color: var(--text-1); }
 .cat.on .tile { transform: scale(1.08); }
@@ -426,7 +431,18 @@ html[lang="ko"] .eyebrow, html[lang="ko"] .pill-private { letter-spacing: 0; }
 .keypad button:active { background: var(--fill); }
 .keypad button.sm { font-size: 18px; }
 .keypad svg.i { width: 24px; height: 24px; }
-.sheet .btn { margin-top: var(--s2); }
+/* Keypad and Save are docked to the bottom of the sheet: on a short screen the upper part scrolls, these never do. */
+.sh-foot { position: sticky; bottom: 0; z-index: 1; margin: 0 calc(-1 * var(--gutter)) calc(-1 * (var(--s4) + var(--safe-b))); padding: 0 var(--gutter) calc(var(--s4) + var(--safe-b)); background: var(--surface); }
+.sh-foot .btn { margin-top: var(--s2); }
+@media (max-width: 380px) { .cat { font-size: 11px; } }
+.sheet:focus { outline: none; }
+/* Short screens (e.g. 360×740): tighten the sheet so the keypad fits with less scrolling. */
+@media (max-height: 820px) {
+  .amt { margin: var(--s2) 0 var(--s1); }
+  .amt-slider { margin: 0 0 var(--s2); }
+  .note-box { margin-top: var(--s3); }
+  .keypad button { height: var(--tap); }
+}
 
 /* ---------- toast ---------- */
 #toast { position: fixed; z-index: 60; left: 50%; bottom: calc(var(--tabbar-h) + var(--btn-h) + var(--s8) + var(--safe-b)); width: calc(min(100vw, var(--w)) - 2 * var(--gutter)); display: flex; justify-content: center; transform: translate(-50%, var(--s5)); opacity: 0; pointer-events: none; transition: opacity var(--t-base), transform var(--t-base) var(--ease); }

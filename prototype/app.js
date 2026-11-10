@@ -56,8 +56,18 @@ function loadState() {
   s.expenses = Array.isArray(s.expenses) ? s.expenses.filter(e => e && typeof e.id === 'string'
     && Number.isInteger(e.amount) && e.amount > 0 && /^\d{4}-\d{2}-\d{2}$/.test(e.date)
     && CATS.some(c => c.id === e.cat)) : [];
-  if (s.setupDone && !(s.profile && Number.isFinite(s.profile.daily) && s.profile.anchor && s.profile.payDate)) {
+  const p = s.profile;
+  const isDay = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+  if (s.setupDone && !(p && typeof p === 'object' && Number.isFinite(p.daily) && isDay(p.anchor) && isDay(p.payDate))) {
     s.setupDone = false; s.profile = null;
+  } else if (p && typeof p === 'object') {
+    // Repair missing or damaged fields instead of crashing a screen that reads them.
+    const list = v => Array.isArray(v) ? v.filter(x => x && typeof x === 'object') : [];
+    const num = v => Number.isFinite(Number(v)) ? Number(v) : 0;
+    p.incoming = list(p.incoming); p.fixed = list(p.fixed); p.debts = list(p.debts);
+    p.balance = num(p.balance); p.savings = num(p.savings); p.undatedOut = num(p.undatedOut);
+    p.payday = Number.isInteger(p.payday) && p.payday >= 1 && p.payday <= 31 ? p.payday : isDay(p.payDate) ? Number(p.payDate.slice(8)) : 25;
+    p.cycleDays = Number.isInteger(p.cycleDays) && p.cycleDays > 0 ? p.cycleDays : 30;
   }
   return s;
 }
@@ -133,35 +143,55 @@ function dayLabel(s) {
  * spendable = balance + money coming in before payday − fixed costs due before payday − debt payments − savings
  * daily     = spendable ÷ days until payday (rounded down to ₩100)
  */
-function calc(p, from = today()) {
+function calc(p, from = today(), alreadyOut = 0) {
   const pay = nextDayOfMonth(from, p.payday, false);
   const days = Math.max(1, diffDays(from, pay));
   const inc = sum(p.incoming.filter(i => !i.date || (parse(i.date) >= from && parse(i.date) < pay)), i => i.amount);
   const fixed = sum(p.fixed.filter(f => !f.day || nextDayOfMonth(from, f.day, true) < pay), f => f.amount);
   const debt = sum(p.debts, d => d.monthly);
   const savings = Number(p.savings) || 0;
-  const avail = (Number(p.balance) || 0) + inc - fixed - debt - savings;
+  // alreadyOut: undated bills, debt and savings for this cycle that the balance already reflects (see estBalance).
+  const avail = (Number(p.balance) || 0) + inc - fixed - debt - savings + alreadyOut;
   const daily = avail > 0 ? Math.floor(avail / days / 100) * 100 : 0;
   return { pay, days, inc, fixed, debt, savings, avail, daily };
 }
 
-function commitProfile(draft, from = today()) {
+/** Bills without a due day, monthly debt payments and savings: taken once per pay cycle, date unknown. */
+const undatedTotal = p => sum(p.fixed.filter(f => !f.day), f => f.amount) + sum(p.debts, d => d.monthly) + (Number(p.savings) || 0);
+
+function commitProfile(draft, from = today(), alreadyOut = 0) {
   const p = JSON.parse(JSON.stringify(draft));
-  const r = calc(p, from);
+  const r = calc(p, from, alreadyOut);
   p.daily = r.daily;
   p.anchor = ymd(from);
   p.payDate = ymd(r.pay);
   p.cycleDays = r.days;
+  p.undatedOut = alreadyOut;
   S.profile = p;
+}
+
+/** Recalculate from today. Within the same pay cycle, undated items count as already paid (they were estimated out of the balance). */
+function recalcProfile(draft) {
+  const sameCycle = today() < parse(S.profile.payDate);
+  commitProfile(draft, today(), sameCycle ? undatedTotal(S.profile) : 0);
 }
 
 const spentOn = s => sum(S.expenses.filter(e => e.date === s), e => e.amount);
 const spentBetween = (a, b) => sum(S.expenses.filter(e => e.date >= a && e.date <= b), e => e.amount);
 
+/**
+ * Balance at the start of today: the entered balance, minus spending, plus money that came in and minus
+ * dated bills that fell due since then. Undated bills, debt and savings for the cycle are assumed paid.
+ */
 function estBalance() {
-  const p = S.profile;
-  const y = ymd(addDays(today(), -1));
-  return p.balance - spentBetween(p.anchor, y);
+  const p = S.profile, a = parse(p.anchor), yd = addDays(today(), -1), y = ymd(yd);
+  let b = (Number(p.balance) || 0) - spentBetween(p.anchor, y);
+  b += sum(p.incoming.filter(i => i.date && i.date >= p.anchor && i.date <= y), i => i.amount);
+  p.fixed.forEach(f => {
+    if (!f.day) return;
+    for (let d = nextDayOfMonth(a, f.day, true); d <= yd; d = nextDayOfMonth(d, f.day, false)) b -= Number(f.amount) || 0;
+  });
+  return b - (undatedTotal(p) - (Number(p.undatedOut) || 0));
 }
 
 function weekInfo() {
@@ -243,7 +273,7 @@ const moneyField = (bind, val, ph = '0') =>
   `<label class="field"><span>₩</span><input inputmode="numeric" data-money data-bind="${bind}" value="${fmtIn(val)}" placeholder="${ph}"></label>`;
 
 function rowHTML(list, it) {
-  const del = `<button class="ri-del" data-act="rmItem" data-list="${list}" data-id="${it.id}" aria-label="remove">${ic('x')}</button>`;
+  const del = `<button class="ri-del" data-act="rmItem" data-list="${list}" data-id="${esc(it.id)}" aria-label="${t('a11y.remove')}">${ic('x')}</button>`;
   const name = `<input class="ri-name" data-bind="${list}.${it.id}.name" value="${esc(it.name)}" placeholder="${t('namePh')}">`;
   if (list === 'fixed') {
     return `<div class="row-item">${name}<div class="ri-fields">${moneyField(`fixed.${it.id}.amount`, it.amount)}
@@ -316,7 +346,7 @@ function stepBody(k, editing) {
 function resultHTML() {
   const r = calc(ui.draft);
   return `<div class="dark on-dark">
-    <div class="dark-top"><button class="icon-btn" data-act="obBack" aria-label="back">${ic('chevL')}</button>${langSeg()}</div>
+    <div class="dark-top"><button class="icon-btn" data-act="obBack" aria-label="${t('a11y.back')}">${ic('chevL')}</button>${langSeg()}</div>
     <div class="dark-body step-anim">
       <div class="res-label t-h3">${t('resLabel')}</div>
       <div class="res-amt num" id="countup" data-to="${r.daily}">${money(0)}</div>
@@ -343,7 +373,7 @@ function onboardingHTML() {
   const total = STEPS.length - 2;
   const optional = ['extra', 'debts', 'savings'].includes(k);
   return `<div class="ob">
-    <div class="ob-top"><button class="icon-btn" data-act="obBack" aria-label="back">${ic('chevL')}</button>
+    <div class="ob-top"><button class="icon-btn" data-act="obBack" aria-label="${t('a11y.back')}">${ic('chevL')}</button>
       <div class="ob-progress"><i style="width:${(ui.step / total) * 100}%"></i></div>
       <span class="ob-count num t-caption">${ui.step}/${total}</span></div>
     <div class="ob-body step-anim">${stepBody(k, false)}</div>
@@ -365,7 +395,7 @@ function itemHTML(e) {
   const time = e.ts && ymd(new Date(e.ts)) === e.date ? new Date(e.ts).toLocaleTimeString(L().locale, { hour: 'numeric', minute: '2-digit' }) : '';
   const title = e.note ? esc(e.note) : t('cats.' + c.id);
   const sub = [e.note ? t('cats.' + c.id) : '', time].filter(Boolean).join(' · ');
-  return `<button class="item" data-act="openEdit" data-id="${e.id}">
+  return `<button class="item" data-act="openEdit" data-id="${esc(e.id)}">
     <span class="tile" style="background:${c.bg};color:${c.color}">${ic(c.icon)}</span>
     <span class="item-main"><span class="item-title t-body-lg">${title}</span>${sub ? `<span class="item-sub">${sub}</span>` : ''}</span>
     <span class="t-body-lg num">${fmt(e.amount)}</span></button>`;
@@ -378,6 +408,10 @@ function groupedList(list) {
     <div class="grp-label t-caption"><span>${dayLabel(dt)}</span><span class="num">${fmt(sum(groups[dt], e => e.amount))}</span></div>
     <div class="list">${groups[dt].sort((a, b) => b.ts - a.ts).map(itemHTML).join('')}</div>`).join('');
 }
+
+/* Day states are told apart by a mark as well as by colour: ✓ under budget, 0 no spend, ✕ over. */
+const DOT_MARK = { good: () => ic('check'), zero: () => '<b class="num">0</b>', over: () => ic('x') };
+const stateText = st => ({ good: t('lgGood'), zero: t('lgZero'), over: t('lgOver'), today: t('today') })[st] || '';
 
 const sortedExpenses = () => [...S.expenses].sort((a, b) => (b.date + b.ts).localeCompare(a.date + a.ts));
 
@@ -397,7 +431,7 @@ function todayHTML() {
         ${cycleEnded ? '' : `<span class="hero-badge num">${t('paydayBadge', { n: dleft })}</span>`}</div>
       <span class="hero-amt t-display num" id="heroAmt" data-v="${Math.abs(left)}">${money(Math.abs(left))}</span>
       <div class="hero-sub t-body num">${over ? t('overSub', { b: fmt(p.daily) }) : spent === 0 ? t('fresh', { b: fmt(p.daily) }) : t('spentOf', { b: fmt(p.daily), s: fmt(spent) })}</div>
-      <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(ratio * 100)}"><i style="width:${ratio * 100}%"></i></div>
+      <div class="bar" role="progressbar" aria-label="${t('leftToday')}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(ratio * 100)}"><i style="width:${ratio * 100}%"></i></div>
     </section>
     ${cycleEnded ? `<div class="banner"><span>${t('cycleEnded')}</span><button data-act="edit" data-step="1">${t('recalc')}</button></div>` : ''}
     <section class="card week">
@@ -408,7 +442,7 @@ function todayHTML() {
       </div>
       <div class="week-amt t-h2 num ${w.left < 0 ? 'neg' : ''}">${money(w.left)}</div>
       <div class="bar"><i style="width:${wRatio * 100}%"></i></div>
-      <div class="dots">${w.dots.map(d => `<div class="dot ${d.st}"><i>${d.st === 'zero' || d.st === 'good' ? ic('check') : d.st === 'over' ? ic('x') : ''}</i>${d.label}</div>`).join('')}</div>
+      <div class="dots">${w.dots.map(d => `<div class="dot ${d.st}"><i aria-hidden="true">${DOT_MARK[d.st] ? DOT_MARK[d.st]() : ''}</i>${d.label}${stateText(d.st) ? `<span class="sr">${stateText(d.st)}</span>` : ''}</div>`).join('')}</div>
       ${w.past > 0 ? `<div class="week-note pos num">${t('saved', { x: fmt(w.past) })}</div>` : w.past < 0 ? `<div class="week-note neg num">${t('overPast', { x: fmt(w.past) })}</div>` : ''}
     </section>
     <div class="sec-h"><h2 class="t-h3">${t('recent')}</h2>${recent.length ? `<button data-act="tab" data-v="history">${t('seeAll')}</button>` : ''}</div>
@@ -436,18 +470,22 @@ function historyHTML() {
     if (parse(s) > td) st = 'future';
     else if (s < anchor && !sp) st = 'pre';
     else st = sp === 0 ? 'zero' : sp <= p.daily ? 'good' : 'over';
+    const base = st;
     if (s === ymd(td)) st += ' today';
     if (ui.histDay === s) st += ' sel';
-    cells += `<button class="cal-d ${st}" data-act="histDay" data-v="${s}"><span class="num">${d}</span>${sp ? `<small class="num">${short(sp)}</small>` : ''}</button>`;
+    const say = [fmtDate(s, { month: 'long', day: 'numeric' }), sp ? fmt(sp) : '', stateText(base)].filter(Boolean).join(', ');
+    const mark = base === 'over' ? ic('x', 'mk') : '';
+    const amount = base === 'zero' ? '<small class="num">0</small>' : sp ? `<small class="num">${short(sp)}</small>` : '';
+    cells += `<button class="cal-d ${st}" data-act="histDay" data-v="${s}" aria-label="${esc(say)}" aria-pressed="${ui.histDay === s}">${mark}<span class="num">${d}</span>${amount}</button>`;
   }
 
   return `${headerHTML()}<h1 class="page-title t-h1">${t('historyTitle')}</h1>
     <section class="card">
-      <div class="month-sw"><button class="icon-btn" data-act="histMonth" data-v="-1" aria-label="previous month">${ic('chevL')}</button><b class="t-h3">${monthLabel}</b><button class="icon-btn" data-act="histMonth" data-v="1" aria-label="next month">${ic('chevR')}</button></div>
+      <div class="month-sw"><button class="icon-btn" data-act="histMonth" data-v="-1" aria-label="${t('a11y.prevMonth')}">${ic('chevL')}</button><b class="t-h3">${monthLabel}</b><button class="icon-btn" data-act="histMonth" data-v="1" aria-label="${t('a11y.nextMonth')}">${ic('chevR')}</button></div>
       <div class="month-stat"><div><div class="stat-l">${t('monthTotal', { m: monthShort })}</div><div class="t-h2 num">${money(total)}</div></div>
         <div class="avg t-caption num">${t('perDay', { x: fmt(lastDay ? total / lastDay : 0) })}</div></div>
       <div class="cal">${cells}</div>
-      <div class="legend"><span><i class="lg-good"></i>${t('lgGood')}</span><span><i class="lg-zero"></i>${t('lgZero')}</span><span><i class="lg-over"></i>${t('lgOver')}</span></div>
+      <div class="legend" aria-hidden="true"><span><i class="lg-good"></i>${t('lgGood')}</span><span><i class="lg-zero">0</i>${t('lgZero')}</span><span><i class="lg-over">${ic('x')}</i>${t('lgOver')}</span></div>
     </section>
     <label class="search">${ic('search')}<input id="histSearch" type="search" autocomplete="off" value="${esc(ui.histQuery)}" placeholder="${t('searchPh')}" aria-label="${t('searchPh')}"></label>
     <div class="chips scroll hist-chips">
@@ -511,7 +549,7 @@ function planHTML() {
     <div class="sec-h"><h2 class="t-h3">${t('byCat')}</h2></div>
     <section class="card">${donutHTML()}</section>
     <div class="sec-h"><h2 class="t-h3">${t('manage')}</h2></div>
-    ${sec(t('balanceSec'), 1, null, row(t('estBalance'), fmt(balanceNow)))}
+    ${sec(t('balanceSec'), 1, null, row(t('estBalance'), fmt(balanceNow), t('estBalanceSub')))}
     ${sec(t('incomeSec'), 2, null, row(t('incomeRow', { d: p.payday === 31 ? t('lastDay') : p.payday }), fmt(p.salary || 0)))}
     ${sec(t('fixedSec'), 4, fmt(sum(p.fixed, f => f.amount)), p.fixed.length ? p.fixed.map(f => row(f.name || '—', fmt(f.amount || 0), f.day ? t('dayN', { n: f.day }) : '')).join('') : none)}
     ${sec(t('extraSec'), 3, p.incoming.length ? fmt(sum(p.incoming, f => f.amount)) : null, p.incoming.length ? p.incoming.map(f => row(f.name || '—', fmt(f.amount || 0), f.date ? fmtDate(f.date, { month: 'short', day: 'numeric' }) : '')).join('') : none)}
@@ -533,7 +571,7 @@ function planHTML() {
 function editHTML() {
   const k = STEPS[ui.editStep];
   return `<div class="edit"><div class="edit-panel">
-    <div class="ob-top"><button class="icon-btn" data-act="editClose" aria-label="close">${ic('x')}</button></div>
+    <div class="ob-top"><button class="icon-btn" data-act="editClose" aria-label="${t('a11y.close')}">${ic('x')}</button></div>
     <div class="ob-body" id="editBody">${stepBody(k, true)}</div>
     <div class="ob-foot"><button class="btn btn-navy" id="nextBtn" data-act="editSave" ${stepValid(k) ? '' : 'disabled'}>${t('saveRecalc')}</button></div>
   </div></div>`;
@@ -553,10 +591,14 @@ function openSheet(e) {
   ui.sheet = e
     ? { mode: 'edit', id: e.id, cat: e.cat, amount: String(e.amount), note: e.note || '', date: e.date }
     : { mode: 'add', cat: 'food', amount: '', note: '', date: ymd(today()) };
+  ui.sheetOpener = document.activeElement;
   renderSheet();
   // A history entry lets the Android back button (and browser back) close the sheet instead of leaving the app.
   history.pushState({ sheet: true }, '');
-  requestAnimationFrame(() => requestAnimationFrame(() => document.querySelector('.sheet-wrap')?.classList.add('open')));
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    document.querySelector('.sheet-wrap')?.classList.add('open');
+    document.querySelector('.sheet')?.focus({ preventScroll: true });
+  }));
 }
 function closeSheet(fromPopState) {
   const w = document.querySelector('.sheet-wrap');
@@ -568,6 +610,10 @@ function closeSheet(fromPopState) {
   ui.sheet = null;
   if (!fromPopState && history.state && history.state.sheet) history.back();
   setTimeout(() => { if (!ui.sheet) document.getElementById('sheetRoot').innerHTML = ''; }, 400);
+  // Return focus to whatever opened the sheet; after a save the list is rebuilt, so fall back to the add button.
+  const back = ui.sheetOpener && ui.sheetOpener.isConnected ? ui.sheetOpener : null;
+  ui.sheetOpener = null;
+  requestAnimationFrame(() => (back && back.isConnected ? back : document.querySelector('[data-act="openAdd"]'))?.focus({ preventScroll: true }));
 }
 window.addEventListener('popstate', () => { if (ui.sheet) closeSheet(true); });
 
@@ -606,11 +652,17 @@ function noteSuggestions(cat) {
   return [...used.slice(0, 3), ...base.filter(b => !used.includes(b))].slice(0, 6);
 }
 
-// Slider window: a 100-multiple max that comfortably covers the current amount so large
-// keypad entries stay reachable, capped at AMOUNT_MAX and never below 100,000.
-function sliderMax(amt) {
-  const m = (Math.ceil(amt / 100000) + 1) * 100000;
-  return Math.min(Math.max(100000, m), Math.floor(AMOUNT_MAX / 100) * 100);
+/*
+ * The slider covers only ₩10,000 either side of the current amount (₩20,000 in total), so one pixel of
+ * drag is about ₩50 and single ₩100 steps are reachable by finger. Releasing re-centres the window,
+ * so a longer adjustment is a few short drags. The keypad stays the way to enter large amounts.
+ */
+const SLIDER_HALF = 10000;
+function sliderWindow(amt) {
+  const val = Math.floor(amt / 100) * 100;
+  const cap = Math.floor(AMOUNT_MAX / 100) * 100;
+  const lo = Math.max(0, Math.min(val - SLIDER_HALF, cap - 2 * SLIDER_HALF));
+  return { lo, hi: lo + 2 * SLIDER_HALF, val };
 }
 
 function sheetInner() {
@@ -620,19 +672,21 @@ function sheetInner() {
   const others = sum(S.expenses.filter(e => e.date === s.date && e.id !== s.id), e => e.amount);
   const leftAfter = p.daily - others - amt;
   const isToday = s.date === td;
+  const win = sliderWindow(amt);
   const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '000', '0', 'back'];
   return `<div class="grab" data-grab aria-hidden="true"></div>
-    <div class="sh-top"><h3 class="t-h3">${s.mode === 'edit' ? t('sheetEdit') : t('sheetAdd')}</h3>
-      <div class="acts">${s.mode === 'edit' ? `<button class="icon-btn" data-act="delExp" aria-label="delete">${ic('trash')}</button>` : ''}<button class="icon-btn" data-act="closeSheet" aria-label="close">${ic('x')}</button></div></div>
+    <div class="sh-top"><h3 class="t-h3" id="shTitle">${s.mode === 'edit' ? t('sheetEdit') : t('sheetAdd')}</h3>
+      <div class="acts">${s.mode === 'edit' ? `<button class="icon-btn" data-act="delExp" aria-label="${t('a11y.delete')}">${ic('trash')}</button>` : ''}<button class="icon-btn" data-act="closeSheet" aria-label="${t('a11y.close')}">${ic('x')}</button></div></div>
     <div class="cats">${CATS.map(x => {
       const on = x.id === s.cat;
       return `<button class="cat ${on ? 'on' : ''}" data-act="cat" data-v="${x.id}"><span class="tile" style="background:${on ? x.color : x.bg};color:${on ? '#fff' : x.color}">${ic(x.icon)}</span>${t('cats.' + x.id)}</button>`;
     }).join('')}</div>
     <div class="amt t-display-sm num ${amt ? '' : 'ph'} ${ui.bump ? 'bump' : ''}" aria-live="polite">${money(amt)}<span class="caret"></span></div>
     <div class="amt-slider">
-      <input type="range" id="amtSlider" class="amt-range" min="0" max="${sliderMax(amt)}" step="100" value="${Math.floor(amt / 100) * 100}" aria-label="${t('slideLabel')}" aria-valuetext="${fmt(amt)}">
+      <input type="range" id="amtSlider" class="amt-range" min="${win.lo}" max="${win.hi}" step="100" value="${win.val}" aria-label="${t('slideLabel')}" aria-valuetext="${fmt(amt)}">
     </div>
     <div class="quick">${c.quick.map(v => `<button class="num" data-act="quick" data-v="${v}">${fmt(v)}</button>`).join('')}</div>
+    ${isToday ? `<div class="preview ${leftAfter < 0 ? 'neg' : ''}"><span>${leftAfter < 0 ? t('afterSaveOver') : t('afterSave')}</span><b class="num">${fmt(Math.abs(leftAfter))}</b></div>` : ''}
     <label class="note-box">${ic('pencil')}<input id="noteIn" value="${esc(s.note)}" placeholder="${t('notePh')}" maxlength="${NOTE_MAX}" autocomplete="off" aria-label="${t('notePh')}"></label>
     <div class="chips scroll note-chips">${noteSuggestions(s.cat).map(n => `<button class="chip ${s.note === n ? 'on' : ''}" data-act="noteChip" data-v="${esc(n)}">${esc(n)}</button>`).join('')}</div>
     <div class="meta">
@@ -640,9 +694,10 @@ function sheetInner() {
       <button class="chip ${s.date === yd ? 'on' : ''}" data-act="dateChip" data-v="${yd}">${t('yesterday')}</button>
       <input type="date" id="dateIn" value="${s.date}" max="${td}">
     </div>
-    ${isToday ? `<div class="preview ${leftAfter < 0 ? 'neg' : ''}"><span>${leftAfter < 0 ? t('afterSaveOver') : t('afterSave')}</span><b class="num">${fmt(Math.abs(leftAfter))}</b></div>` : ''}
-    <div class="keypad">${keys.map(k => `<button class="num ${k === '000' ? 'sm' : ''}" data-act="key" data-v="${k}" ${k === 'back' ? 'aria-label="delete digit"' : ''}>${k === 'back' ? ic('back') : k}</button>`).join('')}</div>
-    <button class="btn btn-lime" data-act="saveExp" ${amt > 0 ? '' : 'disabled'}>${t('saveBtn')}</button>`;
+    <div class="sh-foot">
+      <div class="keypad">${keys.map(k => `<button class="num ${k === '000' ? 'sm' : ''}" data-act="key" data-v="${k}" ${k === 'back' ? `aria-label="${t('a11y.deleteDigit')}"` : ''}>${k === 'back' ? ic('back') : k}</button>`).join('')}</div>
+      <button class="btn btn-lime" data-act="saveExp" ${amt > 0 ? '' : 'disabled'}>${t('saveBtn')}</button>
+    </div>`;
 }
 
 function renderSheet() {
@@ -650,13 +705,17 @@ function renderSheet() {
   if (!ui.sheet) { root.innerHTML = ''; return; }
   let wrap = root.querySelector('.sheet-wrap');
   if (!wrap) {
-    root.innerHTML = `<div class="sheet-wrap" data-act="backdrop"><div class="sheet" role="dialog" aria-modal="true"></div></div>`;
+    root.innerHTML = `<div class="sheet-wrap" data-act="backdrop"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="shTitle" tabindex="-1"></div></div>`;
     wrap = root.querySelector('.sheet-wrap');
   }
   const sheet = wrap.querySelector('.sheet');
   const top = sheet.scrollTop;
+  // Re-rendering replaces every button, so remember which control had focus and put it back (keypad, chips).
+  const a = document.activeElement;
+  const key = a && sheet.contains(a) && a !== sheet ? (a.id ? `#${a.id}` : a.dataset.act ? `[data-act="${a.dataset.act}"]${a.dataset.v !== undefined ? `[data-v="${CSS.escape(a.dataset.v)}"]` : ''}` : null) : null;
   sheet.innerHTML = sheetInner();
   sheet.scrollTop = top;
+  if (key) sheet.querySelector(key)?.focus({ preventScroll: true });
 }
 
 function saveExpense() {
@@ -735,7 +794,10 @@ function toast(msg, withUndo) {
 function hideToast() { document.getElementById('toast').classList.remove('show'); }
 
 /* ---------------- animation ---------------- */
+const reducedMotion = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
 function tween(el, from, to, ms = 700) {
+  if (reducedMotion()) { el.innerHTML = money(to); return; }
   const t0 = performance.now();
   const step = now => {
     const k = Math.min(1, (now - t0) / ms), e = 1 - Math.pow(1 - k, 3);
@@ -909,8 +971,12 @@ document.addEventListener('click', ev => {
     case 'key': {
       let a = ui.sheet.amount;
       if (v === 'back') a = a.slice(0, -1);
-      else if (a.length < 9) a = (a + v).replace(/^0+/, '');
-      ui.sheet.amount = a.slice(0, 9);
+      else {
+        // Ignore a key that would push past 9 digits instead of silently cutting digits off the end.
+        const next = (a + v).replace(/^0+/, '');
+        if (next.length <= 9) a = next;
+      }
+      ui.sheet.amount = a;
       ui.bump = true; renderSheet(); ui.bump = false; break;
     }
     case 'quick':
@@ -945,7 +1011,7 @@ document.addEventListener('click', ev => {
     case 'editClose':
       ui.editStep = null; ui.draft = null; render(); break;
     case 'editSave':
-      commitProfile(ui.draft); ui.editStep = null; ui.draft = null; save(); render(); toast(t('toastSaved')); break;
+      recalcProfile(ui.draft); ui.editStep = null; ui.draft = null; save(); render(); toast(t('toastSaved')); break;
     case 'export': {
       const csv = toCSV(sortedExpenses());
       const url = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
@@ -974,8 +1040,7 @@ document.addEventListener('input', ev => {
     const prevVal = Number(ui.sheet.amount || 0);
     // Buzz once per event when the value crosses into a different 1,000-KRW bucket.
     // Suppressed under prefers-reduced-motion, consistent with the project's motion philosophy.
-    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (!reduce && Math.floor(newVal / 1000) !== Math.floor(prevVal / 1000)) haptic();
+    if (!reducedMotion() && Math.floor(newVal / 1000) !== Math.floor(prevVal / 1000)) haptic();
     ui.sheet.amount = String(newVal);
     // Update live without a full renderSheet() so the slider keeps focus during drag.
     const p = S.profile, td = ymd(today());
@@ -1018,7 +1083,25 @@ document.addEventListener('input', ev => {
   updateLive();
 });
 
+// Released the slider: re-centre its window on the new amount without re-rendering (keeps focus).
+document.addEventListener('change', ev => {
+  const el = ev.target;
+  if (el.id !== 'amtSlider' || !ui.sheet) return;
+  const w = sliderWindow(Number(ui.sheet.amount || 0));
+  el.min = w.lo; el.max = w.hi; el.value = w.val;
+});
+
 document.addEventListener('keydown', ev => {
+  // Keep Tab inside the open sheet (it is a modal dialog).
+  if (ev.key === 'Tab' && ui.sheet) {
+    const sheet = document.querySelector('.sheet');
+    const f = [...sheet.querySelectorAll('button:not(:disabled), input')];
+    if (f.length) {
+      const i = f.indexOf(document.activeElement);
+      if (ev.shiftKey && i <= 0) { ev.preventDefault(); f[f.length - 1].focus(); }
+      else if (!ev.shiftKey && (i === -1 || i === f.length - 1)) { ev.preventDefault(); f[0].focus(); }
+    }
+  }
   if (ev.key === 'Escape' && ui.sheet) closeSheet();
   else if (ev.key === 'Escape' && ui.editStep !== null) { ui.editStep = null; ui.draft = null; render(); }
   if (ev.key === 'Enter' && ev.target.matches('[data-bind]') && !S.setupDone) document.getElementById('nextBtn')?.click();
