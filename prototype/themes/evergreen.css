@@ -1,0 +1,26 @@
+/* 에버그린 & 프로스트 — palette candidate. Quiet, understated mint: the calmest, most
+   restrained of the set. Start values: bg #F4F7F6 / main #174C43 / key #D7EBE4.
+   The frost-mint key is light but, unlike a pure silver, it carries the deep evergreen main
+   as button text at ~7.8:1, so the primary button keeps the key fill (no inversion needed).
+   Overrides tokens in ../styles.css. See ../PALETTES.md. */
+:root {
+  --navy-900:#103830; --navy-700:#174C43; --navy-500:#357165;
+  --lime-400:#D7EBE4; --lime-600:#A9CFC4; --lime-ink:#0E3B33;
+  --bg:#F4F7F6; --surface:#FFFFFF; --fill:#EAF0EE; --line:#DEE7E4;
+  --text-1:#15211E; --text-2:#444F4B; --text-3:#636E6A; --text-4:#A7B0AC;
+  --pos:#1F9D63; --pos-soft:#E4F4EC; --pos-ink:#157A4B;
+  --neg:#D9443A; --neg-soft:#FBE8E6; --neg-ink:#C1362B;
+  --warn-soft:#FFF3D1; --warn-ink:#6B5300;
+}
+body { background:#E3EAE8; }
+.hero, .stat.hero-stat, .dark { background: linear-gradient(165deg, #22645A 0%, #174C43 55%, #103A33 100%); }
+.hero { box-shadow: inset 0 1px 0 rgba(215,235,228,.3), 0 24px 40px -26px rgba(23,76,67,.8); }
+.hero::after, .stat.hero-stat::after { background:#D7EBE4; opacity:.1; }
+.dark::after { background:#D7EBE4; opacity:.14; filter: blur(32px); }
+.hero.over::after { background:#fff; opacity:.08; }
+.btn-lime { box-shadow: inset 0 -2px 0 var(--lime-600), 0 14px 26px -16px rgba(23,76,67,.5); }
+.priv-pts span { background: rgba(215,235,228,.3); }
+.cal-d.good, .legend .lg-good { background:#E6F1ED; color:#1C5247; box-shadow:none; }
+.preview { background:#F0F4F3; }
+.preview b { color:#174C43; }
+.tabbar::before { background: linear-gradient(to top, var(--bg) 30%, rgba(244,247,246,0)); }

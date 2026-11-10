@@ -8,7 +8,7 @@
   --bg:#F6F7FC; --surface:#FFFFFF; --fill:#ECEEF8; --line:#E0E4F2;
   --text-1:#141833; --text-2:#444B6E; --text-3:#636A8B; --text-4:#A9AEC8;
   --pos:#1F9D63; --pos-soft:#E2F5EC; --pos-ink:#157A4B;
-  --neg:#D23F31; --neg-soft:#FDE8E5; --neg-ink:#C7362A;
+  --neg:#D23F31; --neg-soft:#FDE8E5; --neg-ink:#C1362B;
   --warn-soft:#FFF0CC; --warn-ink:#6B5300;
 }
 body { background:#E3E6F3; }

@@ -7,7 +7,7 @@
   --bg:#F5F5F5; --surface:#FFFFFF; --fill:#EEEEEE; --line:#E2E2E2;
   --text-1:#111111; --text-2:#444444; --text-3:#666666; --text-4:#ABABAB;
   --pos:#1F9D63; --pos-soft:#E2F5EC; --pos-ink:#157A4B;
-  --neg:#D23F31; --neg-soft:#FDE8E5; --neg-ink:#C7362A;
+  --neg:#D23F31; --neg-soft:#FDE8E5; --neg-ink:#C1362B;
   --warn-soft:#F1F1F1; --warn-ink:#333333;
 }
 body { background:#E4E4E4; }
